@@ -5,9 +5,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase'; // Fixed import
-import { 
-  FiUser, FiMail, FiPhone, FiBriefcase, FiMapPin, 
-  FiSave, FiLayers, FiLock, FiEye, FiEyeOff, FiHash 
+import {
+  FiUser, FiMail, FiPhone, FiBriefcase, FiMapPin,
+  FiSave, FiLayers, FiLock, FiEye, FiEyeOff, FiHash
 } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -16,12 +16,12 @@ interface FormData {
   first_name: string;
   last_name: string;
   email: string;
-  password: string; 
+  password: string;
   phone: string;
   company_name: string;
-  gst_number: string; 
-  store_address: string; 
-  address: string; 
+  gst_number: string;
+  store_address: string;
+  address: string;
   role: string;
 }
 
@@ -50,12 +50,12 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
     first_name: '',
     last_name: '',
     email: '',
-    password: '', 
+    password: '',
     phone: '',
     company_name: '',
-    gst_number: '', 
-    store_address: '', 
-    address: '', 
+    gst_number: '',
+    store_address: '',
+    address: '',
     role: 'retail_outlet',
   });
 
@@ -63,11 +63,11 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (isReviewMode) return;
-    setErrorMsg(''); 
+    setErrorMsg('');
     const { name, value } = e.target;
-    setFormData({ 
-      ...formData, 
-      [name]: name === 'gst_number' ? value.toUpperCase() : value 
+    setFormData({
+      ...formData,
+      [name]: name === 'gst_number' ? value.toUpperCase() : value
     });
   };
 
@@ -87,6 +87,7 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
     const toastId = toast.loading('Provisioning credentials...');
 
     try {
+      // ... inside handleSubmit try block
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -95,13 +96,19 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
 
       if (authError) throw authError;
 
+      // 1. Check if user exists before proceeding
+      if (!authData.user) {
+        throw new Error("User creation failed. Please check if the email is already registered.");
+      }
+
       const { error: dbError } = await supabase.from('dealers').insert([
-        { 
+        {
           ...formData,
-          user_id: authData.user.id, 
-          approval_status: 'approved' 
+          user_id: authData.user.id, // TypeScript is happy now!
+          approval_status: 'approved'
         }
       ]);
+      // ... rest of the code
 
       if (dbError) throw dbError;
 
@@ -118,7 +125,7 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
   return (
     <div className="min-h-screen bg-white p-4 md:p-6 font-inter">
       <Toaster position="top-right" />
-      
+
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-black text-gray-900">Partner Onboarding</h1>
@@ -128,13 +135,13 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-10">
           {/* Main Grid: Stacks on mobile */}
           <div className={`grid gap-6 mb-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            
+
             {/* Identity Section */}
             <div className="space-y-4">
               <h3 className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
                 <FiUser /> Identity
               </h3>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
                 <div className={`flex gap-3 ${isMobile ? 'flex-col' : 'flex-row'}`}>
@@ -177,14 +184,14 @@ export default function AddRetailer({ existingDealer = null }: AddRetailerProps)
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Login Password</label>
                 <div className="relative">
                   <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input 
-                    name="password" 
-                    type={showPassword ? 'text' : 'password'} 
+                  <input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="Set password"
-                    value={formData.password} 
-                    required 
+                    value={formData.password}
+                    required
                     className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange} 
+                    onChange={handleChange}
                   />
                   <button
                     type="button"
