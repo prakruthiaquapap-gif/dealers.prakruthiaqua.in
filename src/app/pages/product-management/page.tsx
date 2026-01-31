@@ -179,17 +179,21 @@ export default function ProductManagement() {
     if (activeFilter === 'active') query = query.eq('active', true);
     else if (activeFilter === 'inactive') query = query.eq('active', false);
 
-    let { data, error } = await query; // Changed to let to allow reassignment
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      return;
-    }
+    let { data, error } = await query;
+
+    let productsData: Product[] = data ?? [];
+
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      data = data.filter((p: Product) => p.product_name.toLowerCase().includes(lower) || p.description.toLowerCase().includes(lower));
+      productsData = productsData.filter(
+        (p) =>
+          p.product_name.toLowerCase().includes(lower) ||
+          p.description.toLowerCase().includes(lower)
+      );
     }
-    setProducts(data);
+
+    setProducts(productsData);
+
     setSelectedProducts([]);
     setLoading(false);
   };
@@ -640,9 +644,8 @@ export default function ProductManagement() {
           {products.map((p) => (
             <article
               key={p.id}
-              className={`relative bg-white rounded-3xl overflow-hidden transition-all duration-300 ease-out shadow-sm hover:shadow-lg cursor-pointer ${
-                selectedProducts.includes(p.id) ? 'outline-2 outline-indigo-500 bg-indigo-50 scale-95' : 'outline-1 outline-gray-200'
-              }`}
+              className={`relative bg-white rounded-3xl overflow-hidden transition-all duration-300 ease-out shadow-sm hover:shadow-lg cursor-pointer ${selectedProducts.includes(p.id) ? 'outline-2 outline-indigo-500 bg-indigo-50 scale-95' : 'outline-1 outline-gray-200'
+                }`}
               tabIndex={0}
               role="button"
               aria-label={`Product: ${p.product_name}, Category: ${p.category}, Stock: ${p.variants.reduce((s, v) => s + v.stock, 0)}, Price: ₹${p.supplier_price}`}
@@ -677,9 +680,8 @@ export default function ProductManagement() {
                   className="w-full h-full object-cover"
                   alt={`Image of ${p.product_name}`}
                 />
-                <div className={`absolute bottom-4 right-4 px-3 py-1.5 rounded-xl text-xs font-black backdrop-blur-sm ${
-                  p.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
+                <div className={`absolute bottom-4 right-4 px-3 py-1.5 rounded-xl text-xs font-black backdrop-blur-sm ${p.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
                   {p.active ? '● Active' : '○ Inactive'}
                 </div>
               </div>
@@ -689,12 +691,10 @@ export default function ProductManagement() {
                 <h3 className="text-xl font-black text-gray-900 mt-2 mb-4 leading-tight">{p.product_name}</h3>
 
                 <div className="flex justify-between items-center mb-5">
-                  <div className={`flex items-center gap-1.5 text-sm font-semibold ${
-                    p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'bg-green-500' : 'bg-red-500'
-                    }`}></div>
+                  <div className={`flex items-center gap-1.5 text-sm font-semibold ${p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
                     {p.variants.reduce((s, v) => s + v.stock, 0)} in stock
                   </div>
                   <div className="text-2xl font-black text-gray-900">₹{p.supplier_price}</div>
@@ -708,9 +708,8 @@ export default function ProductManagement() {
                     Edit
                   </button>
                   <button
-                    className={`py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-bold cursor-pointer ${
-                      p.active ? 'text-orange-600' : 'text-green-600'
-                    }`}
+                    className={`py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-bold cursor-pointer ${p.active ? 'text-orange-600' : 'text-green-600'
+                      }`}
                     onClick={(e) => { e.stopPropagation(); toggleActive(p); }}
                     aria-label={p.active ? `Deactivate ${p.product_name}` : `Activate ${p.product_name}`}
                   >
