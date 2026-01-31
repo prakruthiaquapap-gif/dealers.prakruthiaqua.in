@@ -795,13 +795,54 @@ quantity_value: 0,
               <div className="mb-6">
                 <h4 className="text-lg font-black text-gray-900 mb-3">Pricing Structure</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {['supplier', 'dealer', 'subdealer', 'retail', 'customer'].map((tier) => (
-                    <div key={tier} className="p-4 bg-white border border-gray-300 rounded-2xl text-center">
-                      <span className="block text-xs font-black text-gray-400 uppercase mb-2">{tier}</span>
-                      <span className="text-xl font-black text-gray-900">₹{selectedProduct.variants.find((v) => v.id === selectedVariantId)?.[tier + '_price']}</span>
-                      <span className="block text-xs text-green-600 mt-1">Discount: {selectedProduct.variants.find((v) => v.id === selectedVariantId)?.[tier + '_discount'] || 0}%</span>
-                    </div>
-                  ))}
+             {([
+  'supplier',
+  'dealer',
+  'subdealer',
+  'retail',
+  'customer',
+] as const).map((tier) => {
+  const variant = selectedProduct.variants.find(
+    (v) => v.id === selectedVariantId
+  );
+
+  return (
+    <div key={tier} className="p-4 bg-white border border-gray-300 rounded-2xl text-center">
+      <span className="block text-xs font-black text-gray-400 uppercase mb-2">
+        {tier}
+      </span>
+
+      <span className="text-xl font-black text-gray-900">
+        ₹{
+          tier === 'supplier'
+            ? variant?.supplier_price
+            : tier === 'dealer'
+            ? variant?.dealer_price
+            : tier === 'subdealer'
+            ? variant?.subdealer_price
+            : tier === 'retail'
+            ? variant?.retail_price
+            : variant?.customer_price
+        }
+      </span>
+
+      <span className="block text-xs text-green-600 mt-1">
+        Discount:{
+          tier === 'supplier'
+            ? variant?.supplier_discount
+            : tier === 'dealer'
+            ? variant?.dealer_discount
+            : tier === 'subdealer'
+            ? variant?.subdealer_discount
+            : tier === 'retail'
+            ? variant?.retail_discount
+            : variant?.customer_discount
+        }%
+      </span>
+    </div>
+  );
+})}
+
                 </div>
               </div>
             </div>
