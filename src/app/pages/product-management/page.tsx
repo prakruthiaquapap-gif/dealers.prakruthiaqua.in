@@ -1013,7 +1013,9 @@ export default function ProductManagement() {
                               id={`stock-${idx}`}
                               type="number"
                               value={v.stock}
-                              onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+onChange={(e) =>
+  handleVariantChange(idx, 'stock', Number(e.target.value))
+}
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
                               required
                             />
