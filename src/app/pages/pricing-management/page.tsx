@@ -108,22 +108,31 @@ export default function PricingManagement() {
   const currentItems = filteredVariants.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const totalPages = Math.ceil(filteredVariants.length / ITEMS_PER_PAGE);
 
-  const savePricing = async () => {
+ const savePricing = async () => {
     if (!editingVariant) return;
     try {
-      // Build update object for both prices and discounts
-      const updates: Partial<Variant> = {};
+      // Use 'any' or a Record type temporarily to bypass strict key-mapping issues
+      const updates: any = {}; 
+      
       PRICE_TIERS.forEach(t => {
+        // Ensure we are parsing numbers correctly
         updates[t.key] = parseFloat(currentPrices[t.key] as string) || 0;
         updates[t.discKey] = parseFloat(currentPrices[t.discKey] as string) || 0;
       });
+
       updates.stock = parseInt(currentPrices.stock as string) || 0;
+      // Note: If updated_at isn't in your Variant interface, 
+      // you might need to add it there or keep using 'any'
       updates.updated_at = new Date().toISOString();
 
-      const { error } = await supabase.from('product_variants').update(updates).eq('id', editingVariant.id);
+      const { error } = await supabase
+        .from('product_variants')
+        .update(updates)
+        .eq('id', editingVariant.id);
       
       if (error) throw error;
 
+      // Update local state with the new values
       setVariants(variants.map(v => v.id === editingVariant.id ? { ...v, ...updates } : v));
       setShowEditModal(false);
       setSuccessMessage('Inventory & Discounts Updated');
@@ -132,7 +141,6 @@ export default function PricingManagement() {
       alert(err.message); 
     }
   };
-
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto font-inter bg-gray-50 min-h-screen">
       {successMessage && (
