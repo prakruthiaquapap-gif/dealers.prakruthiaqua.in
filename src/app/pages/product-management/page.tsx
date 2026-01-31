@@ -107,7 +107,7 @@ export default function ProductManagement() {
     image_urls: [],
     variants: [
       {
-quantity_value: 0,
+        quantity_value: 0,
         quantity_unit: '',
         stock: 0,
         supplier_price: 0,
@@ -225,10 +225,12 @@ quantity_value: 0,
       if (!v.quantity_value || Number(v.quantity_value) <= 0) newErrors[`variant_qty_${i}`] = 'Req.';
       if (!v.quantity_unit) newErrors[`variant_unit_${i}`] = 'Req.';
       ['supplier_price', 'dealer_price', 'subdealer_price', 'retail_price', 'customer_price'].forEach((field) => {
-        if (v[field as keyof Variant] === '' || Number(v[field as keyof Variant]) <= 0) newErrors[`${field}_${i}`] = 'Error';
+        if (Number(v[field as keyof Variant]) <= 0)
+          newErrors[`${field}_${i}`] = 'Error';
       });
       ['supplier_discount', 'dealer_discount', 'subdealer_discount', 'retail_discount', 'customer_discount'].forEach((field) => {
-        if (v[field as keyof Variant] === '' || Number(v[field as keyof Variant]) < 0) newErrors[`${field}_${i}`] = 'Error';
+        if (Number(v[field as keyof Variant]) < 0)
+          if (Number(v[field as keyof Variant]) < 0) newErrors[`${field}_${i}`] = 'Error';
       });
     });
 
@@ -356,7 +358,7 @@ quantity_value: 0,
       image_urls: [],
       variants: [
         {
-quantity_value: 0,
+          quantity_value: 0,
           quantity_unit: '',
           stock: 0,
           supplier_price: 0,
@@ -374,18 +376,18 @@ quantity_value: 0,
     });
   };
 
-const handleVariantChange = <K extends keyof Variant>(
-  index: number,
-  field: K,
-  value: Variant[K]
-) => {
-  const newVariants = [...form.variants];
-  newVariants[index] = {
-    ...newVariants[index],
-    [field]: value,
+  const handleVariantChange = <K extends keyof Variant>(
+    index: number,
+    field: K,
+    value: Variant[K]
+  ) => {
+    const newVariants = [...form.variants];
+    newVariants[index] = {
+      ...newVariants[index],
+      [field]: value,
+    };
+    setForm({ ...form, variants: newVariants });
   };
-  setForm({ ...form, variants: newVariants });
-};
 
 
   const addVariant = () => {
@@ -394,7 +396,7 @@ const handleVariantChange = <K extends keyof Variant>(
       variants: [
         ...form.variants,
         {
-quantity_value: 0,
+          quantity_value: 0,
           quantity_unit: '',
           stock: 0,
           supplier_price: 0,
@@ -795,53 +797,53 @@ quantity_value: 0,
               <div className="mb-6">
                 <h4 className="text-lg font-black text-gray-900 mb-3">Pricing Structure</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-             {([
-  'supplier',
-  'dealer',
-  'subdealer',
-  'retail',
-  'customer',
-] as const).map((tier) => {
-  const variant = selectedProduct.variants.find(
-    (v) => v.id === selectedVariantId
-  );
+                  {([
+                    'supplier',
+                    'dealer',
+                    'subdealer',
+                    'retail',
+                    'customer',
+                  ] as const).map((tier) => {
+                    const variant = selectedProduct.variants.find(
+                      (v) => v.id === selectedVariantId
+                    );
 
-  return (
-    <div key={tier} className="p-4 bg-white border border-gray-300 rounded-2xl text-center">
-      <span className="block text-xs font-black text-gray-400 uppercase mb-2">
-        {tier}
-      </span>
+                    return (
+                      <div key={tier} className="p-4 bg-white border border-gray-300 rounded-2xl text-center">
+                        <span className="block text-xs font-black text-gray-400 uppercase mb-2">
+                          {tier}
+                        </span>
 
-      <span className="text-xl font-black text-gray-900">
-        ₹{
-          tier === 'supplier'
-            ? variant?.supplier_price
-            : tier === 'dealer'
-            ? variant?.dealer_price
-            : tier === 'subdealer'
-            ? variant?.subdealer_price
-            : tier === 'retail'
-            ? variant?.retail_price
-            : variant?.customer_price
-        }
-      </span>
+                        <span className="text-xl font-black text-gray-900">
+                          ₹{
+                            tier === 'supplier'
+                              ? variant?.supplier_price
+                              : tier === 'dealer'
+                                ? variant?.dealer_price
+                                : tier === 'subdealer'
+                                  ? variant?.subdealer_price
+                                  : tier === 'retail'
+                                    ? variant?.retail_price
+                                    : variant?.customer_price
+                          }
+                        </span>
 
-      <span className="block text-xs text-green-600 mt-1">
-        Discount:{
-          tier === 'supplier'
-            ? variant?.supplier_discount
-            : tier === 'dealer'
-            ? variant?.dealer_discount
-            : tier === 'subdealer'
-            ? variant?.subdealer_discount
-            : tier === 'retail'
-            ? variant?.retail_discount
-            : variant?.customer_discount
-        }%
-      </span>
-    </div>
-  );
-})}
+                        <span className="block text-xs text-green-600 mt-1">
+                          Discount:{
+                            tier === 'supplier'
+                              ? variant?.supplier_discount
+                              : tier === 'dealer'
+                                ? variant?.dealer_discount
+                                : tier === 'subdealer'
+                                  ? variant?.subdealer_discount
+                                  : tier === 'retail'
+                                    ? variant?.retail_discount
+                                    : variant?.customer_discount
+                          }%
+                        </span>
+                      </div>
+                    );
+                  })}
 
                 </div>
               </div>
@@ -978,7 +980,8 @@ quantity_value: 0,
                               id={`qty-value-${idx}`}
                               type="number"
                               value={v.quantity_value}
-                              onChange={(e) => handleVariantChange(idx, 'quantity_value', e.target.value)}
+                              onChange={(e) => handleVariantChange(idx, 'stock', Number(e.target.value))}
+
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
                               required
                               aria-describedby={`qty-error-${idx}`}
@@ -1033,7 +1036,13 @@ quantity_value: 0,
                                   id={`${item.f}-${idx}`}
                                   type="number"
                                   value={v[item.f as keyof Variant]}
-                                  onChange={(e) => handleVariantChange(idx, item.f as keyof Variant, e.target.value)}
+                                  onChange={(e) =>
+                                    handleVariantChange(
+                                      idx,
+                                      item.f as keyof Variant,
+                                      Number(e.target.value)
+                                    )
+                                  }
                                   className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
                                   required
                                   aria-describedby={`${item.f}-error-${idx}`}
@@ -1045,7 +1054,13 @@ quantity_value: 0,
                                 id={`${item.discount}-${idx}`}
                                 type="number"
                                 value={v[item.discount as keyof Variant]}
-                                onChange={(e) => handleVariantChange(idx, item.discount as keyof Variant, e.target.value)}
+                                onChange={(e) =>
+                                  handleVariantChange(
+                                    idx,
+                                    item.discount as keyof Variant,
+                                    Number(e.target.value)
+                                  )
+                                }
                                 className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
                                 min="0"
                                 max="100"
