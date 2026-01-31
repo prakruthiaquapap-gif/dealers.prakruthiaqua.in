@@ -5,8 +5,8 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase'; // Fixed import
 import {
-  FiSearch, FiDownload, FiUser, FiX, FiCheck, FiSlash, 
-  FiPhone, FiMail, FiMapPin, FiArrowUpRight, FiArrowDownLeft, 
+  FiSearch, FiDownload, FiUser, FiX, FiCheck, FiSlash,
+  FiPhone, FiMail, FiMapPin, FiArrowUpRight, FiArrowDownLeft,
   FiPrinter, FiFileText, FiActivity
 } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
@@ -141,10 +141,23 @@ export default function ManageDealers() {
   const outstandingBalance = totalInvoiced - totalPaid;
 
   const combinedLedger = [
-    ...userOrders.map(o => ({ ...o, type: 'DEBIT', label: 'Order Purchase', ref: o.order_id || o.id })),
-    ...paymentLogs.map(p => ({ ...p, type: 'CREDIT', label: 'Payment Received', ref: p.transaction_id || 'Cash/UPI' }))
+    ...userOrders.map(o => ({
+      id: o.id,
+      type: 'DEBIT',
+      label: 'Order Purchase',
+      ref: o.order_id || o.id,
+      displayAmount: o.total_amount, // Standardized key
+      created_at: o.created_at
+    })),
+    ...paymentLogs.map(p => ({
+      id: p.id,
+      type: 'CREDIT',
+      label: 'Payment Received',
+      ref: p.transaction_id || 'Cash/UPI',
+      displayAmount: p.amount, // Standardized key
+      created_at: p.created_at
+    }))
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto font-inter bg-gray-50 min-h-screen">
       <Toaster position="top-right" />
@@ -197,17 +210,15 @@ export default function ManageDealers() {
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => handleStatusUpdate(r.id, 'approved')}
-                      className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${
-                        r.approval_status === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600'
-                      }`}
+                      className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${r.approval_status === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600'
+                        }`}
                     >
                       <FiCheck />
                     </button>
                     <button
                       onClick={() => handleStatusUpdate(r.id, 'rejected')}
-                      className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${
-                        r.approval_status === 'rejected' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600'
-                      }`}
+                      className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${r.approval_status === 'rejected' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600'
+                        }`}
                     >
                       <FiSlash />
                     </button>
@@ -248,17 +259,15 @@ export default function ManageDealers() {
                       <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
                         <button
                           onClick={() => handleStatusUpdate(r.id, 'approved')}
-                          className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${
-                            r.approval_status === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600'
-                          }`}
+                          className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${r.approval_status === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600'
+                            }`}
                         >
                           <FiCheck />
                         </button>
                         <button
                           onClick={() => handleStatusUpdate(r.id, 'rejected')}
-                          className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${
-                            r.approval_status === 'rejected' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600'
-                          }`}
+                          className={`px-3 py-2 rounded-md font-semibold text-sm transition-all flex items-center gap-1 ${r.approval_status === 'rejected' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600'
+                            }`}
                         >
                           <FiSlash />
                         </button>
@@ -306,9 +315,8 @@ export default function ManageDealers() {
       {/* Modal */}
       {isModalOpen && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center p-4 z-50">
-          <div className={`bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col ${
-            isMobile ? 'w-full h-[92vh] rounded-t-3xl' : 'w-full max-w-2xl max-h-[85vh]'
-          }`}>
+          <div className={`bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-[92vh] rounded-t-3xl' : 'w-full max-w-2xl max-h-[85vh]'
+            }`}>
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -348,17 +356,15 @@ export default function ManageDealers() {
             <div className="flex gap-6 px-6 bg-white border-b border-gray-200">
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`py-4 font-semibold text-sm transition-all ${
-                  activeTab === 'ledger' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'
-                }`}
+                className={`py-4 font-semibold text-sm transition-all ${activeTab === 'ledger' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'
+                  }`}
               >
                 Transaction History
               </button>
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`py-4 font-semibold text-sm transition-all ${
-                  activeTab === 'profile' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'
-                }`}
+                className={`py-4 font-semibold text-sm transition-all ${activeTab === 'profile' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'
+                  }`}
               >
                 Contact Details
               </button>
@@ -372,18 +378,16 @@ export default function ManageDealers() {
                 <div className="space-y-4">
                   {combinedLedger.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${
-                        item.type === 'DEBIT' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${item.type === 'DEBIT' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                        }`}>
                         {item.type === 'DEBIT' ? <FiArrowUpRight /> : <FiArrowDownLeft />}
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-semibold text-gray-900">{item.label}</span>
                           <span className={`font-bold ${item.type === 'DEBIT' ? 'text-gray-900' : 'text-green-600'}`}>
-                            {item.type === 'DEBIT' ? '-' : '+'} ₹{Number(item.total_amount || item.amount).toLocaleString()}
-                          </span>
-                        </div>
+                            {item.type === 'DEBIT' ? '-' : '+'} ₹{Number(item.displayAmount).toLocaleString()}
+                          </span></div>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           {new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                           <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
