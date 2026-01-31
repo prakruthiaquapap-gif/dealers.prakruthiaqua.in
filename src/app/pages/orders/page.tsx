@@ -69,7 +69,7 @@ export default function OrdersPage() {
                 <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
                     <MdReceipt size={48} className="mx-auto text-gray-300 mb-4" />
                     <p className="font-bold text-gray-500">No orders found yet.</p>
-                    <button onClick={() => router.push('/pages/shop')} className="mt-4 text-[#108542] font-black uppercase text-xs underline">Start Shopping</button>
+                    <button onClick={() => router.push('/pages/products')} className="mt-4 text-[#108542] font-black uppercase text-xs underline">Start Shopping</button>
                 </div>
             ) : (
                 <div className="space-y-6">

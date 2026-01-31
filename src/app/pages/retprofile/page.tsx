@@ -1,16 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase';
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
+
+const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 import {
     MdPerson, MdEmail, MdBadge, MdLocationOn,
-    MdPhone, MdLogout, MdVerified, MdShoppingBag, MdEdit, MdCheck, MdClose
+    MdPhone, MdLogout, MdVerified, MdStorefront, MdEdit, MdCheck, MdClose
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
-export default function DealerProfile() {
-    const supabase = createClient();
+export default function RetailerProfile() {
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);
@@ -27,37 +32,40 @@ export default function DealerProfile() {
 
     const fetchProfileData = async () => {
         try {
+
+            // 1. Fetch Retailer Basic Info (Renamed table to retailers)
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return router.push('/login');
 
-            // 1. Fetch Dealer Basic Info
-            const { data: dealer } = await supabase
-                .from('dealers')
+            // Retailer profile (may or may not exist)
+            const { data: retailer } = await supabase
+                .from('retailers')
                 .select('*')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
 
-            // 2. Fetch Shipping Address (Primary Source for your Name)
+            // Address (linked directly to auth.users)
             const { data: addr } = await supabase
-                .from('dealer_shipping_address')
+                .from('retail_shipping')
                 .select('*')
-                .eq('dealer_id', user.id)
-                .single();
+                .eq('retail_id', user.id)
+                .maybeSingle();
 
-            // 3. Fetch Order Stats
+
+            // 3. Fetch Order Stats (Renamed table to retailer_orders)
             const { data: orders } = await supabase
-                .from('dealer_orders')
+                .from('retailer_orders')
                 .select('total_amount')
-                .eq('dealer_id', user.id);
+                .eq('retailer_id', user.id);
 
             const spent = orders?.reduce((acc, curr) => acc + curr.total_amount, 0) || 0;
 
-            setProfile({ ...dealer, email: user.email });
+            setProfile({ ...retailer, email: user.email });
             setAddress(addr);
             setStats({ totalOrders: orders?.length || 0, totalSpent: spent });
 
-            // Priority: Use Address Name -> Then Dealer Table Name -> Then Fallback
-            setTempName(addr?.name || dealer?.dealer_name || 'Dealer Partner');
+            // Priority: Address Name -> Retailer Table Name -> Fallback
+            setTempName(addr?.name || retailer?.retailer_name || 'Retail Partner');
 
         } catch (error) {
             console.error('Error loading profile:', error);
@@ -72,17 +80,16 @@ export default function DealerProfile() {
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            // Update the dealers table so the header and profile match
             const { error } = await supabase
-                .from('dealers')
-                .update({ dealer_name: tempName })
+                .from('retailers')
+                .update({ retailer_name: tempName })
                 .eq('user_id', user?.id);
 
             if (error) throw error;
 
-            setProfile({ ...profile, dealer_name: tempName });
+            setProfile({ ...profile, retailer_name: tempName });
             setIsEditingName(false);
-            toast.success("Profile Name Updated!");
+            toast.success("Retailer Name Updated!");
         } catch (error) {
             toast.error("Update failed");
         }
@@ -94,10 +101,10 @@ export default function DealerProfile() {
         toast.success("Logged out successfully");
     };
 
-    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#108542]">LOADING PROFILE...</div>;
+    // Color Swapped Loading State
+    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#4f46e5]">LOADING PROFILE...</div>;
 
-    // Consistency: Take the name exactly as it appears in the address
-    const finalDisplayName = address?.name || profile?.dealer_name || "Dealer Partner";
+    const finalDisplayName = address?.name || profile?.retailer_name || "Retail Partner";
     const displayPhone = address?.phone || profile?.phone_number || "Not Provided";
 
     return (
@@ -105,8 +112,8 @@ export default function DealerProfile() {
             {/* Header */}
             <div className="flex justify-between items-end mb-10 border-b border-slate-100 pb-6">
                 <div>
-                    <h1 className="text-4xl font-black text-slate-800 uppercase tracking-tight">Dealer Profile</h1>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Manage your account & identity</p>
+                    <h1 className="text-4xl font-black text-slate-800 uppercase tracking-tight">Retailer Profile</h1>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Manage store & identity</p>
                 </div>
                 <button
                     onClick={handleLogout}
@@ -118,9 +125,10 @@ export default function DealerProfile() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                {/* LEFT: Identity & Business Performance */}
+                {/* LEFT: Identity & Store Performance */}
                 <div className="lg:col-span-4 space-y-6">
                     <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
+                        {/* Swapped Green for Indigo */}
                         <div className="absolute top-0 left-0 w-full h-2 bg-[#108542]"></div>
                         <div className="w-28 h-28 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-slate-50/50">
                             <MdPerson size={60} className="text-slate-300" />
@@ -132,7 +140,7 @@ export default function DealerProfile() {
                                     type="text"
                                     value={tempName}
                                     onChange={(e) => setTempName(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 text-center font-black text-lg p-2 rounded-xl outline-[#108542]"
+                                    className="bg-slate-50 border border-slate-200 text-center font-black text-lg p-2 rounded-xl outline-[#4f46e5]"
                                 />
                                 <div className="flex gap-2 justify-center">
                                     <button onClick={handleUpdateName} className="p-2 bg-green-500 text-white rounded-lg"><MdCheck /></button>
@@ -155,53 +163,50 @@ export default function DealerProfile() {
 
                         <div className="flex items-center justify-center gap-1 mt-2">
                             <MdVerified className="text-blue-500" size={16} />
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Verified Dealer</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Verified Retailer</span>
                         </div>
 
                         <div className="mt-6 pt-6 border-t border-slate-50">
                             <span className="text-[10px] font-black text-white bg-[#108542] px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md">
-                                {profile?.role || 'Retailer'}
+                                {profile?.role || 'Shop Owner'}
                             </span>
                         </div>
                     </div>
 
+                    {/* Stats Card Swapped to Dark Indigo */}
                     <div className="bg-[#2c4305] p-10 rounded-[3.5rem] text-white shadow-2xl shadow-[#2c4305]/30 relative overflow-hidden group">
-                        {/* Background Decorative Icon */}
                         <div className="absolute -right-6 -bottom-6 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
-                            <MdShoppingBag size={150} />
+                            <MdStorefront size={150} />
                         </div>
 
-                        {/* Header Label */}
                         <div className="relative z-10 flex items-center gap-2 mb-8">
                             <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                            <p className="text-[10px] font-black uppercase text-green-200/60 tracking-[0.25em]">
-                                Business Performance
+                            <p className="text-[10px] font-black uppercase text-indigo-200/60 tracking-[0.25em]">
+                                Store Metrics
                             </p>
                         </div>
 
                         <div className="relative z-10 space-y-8">
-                            {/* Main Stat */}
                             <div>
                                 <p className="text-4xl font-black tracking-tighter">
                                     ₹{stats.totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </p>
                                 <p className="text-[10px] font-bold text-white/50 uppercase mt-2 tracking-widest">
-                                    Total Procurement Investment
+                                    Inventory Investment
                                 </p>
                             </div>
 
-                            {/* Bottom Metrics */}
                             <div className="flex justify-between items-end border-t border-white/10 pt-6">
                                 <div>
                                     <p className="text-2xl font-black">{stats.totalOrders}</p>
                                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
-                                        Orders Fulfilled
+                                        Total Orders
                                     </p>
                                 </div>
 
                                 <div className="text-right">
-                                    <span className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter text-green-300 border border-white/5">
-                                        Active Account
+                                    <span className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-tighter text-indigo-300 border border-white/5">
+                                        Active Store
                                     </span>
                                 </div>
                             </div>
@@ -213,6 +218,7 @@ export default function DealerProfile() {
                 <div className="lg:col-span-8 space-y-6">
                     <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-3 mb-8">
+                            {/* Icon Background Swapped */}
                             <div className="p-3 bg-green-50 rounded-2xl text-[#108542]">
                                 <MdBadge size={24} />
                             </div>
@@ -243,7 +249,7 @@ export default function DealerProfile() {
                                 <div className="p-3 bg-green-50 rounded-2xl text-[#108542]">
                                     <MdLocationOn size={24} />
                                 </div>
-                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Shipping Destination</h3>
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Store Address</h3>
                             </div>
                             <button
                                 onClick={() => router.push('/pages/checkout')}
@@ -258,7 +264,7 @@ export default function DealerProfile() {
                                 <p className="text-lg font-black text-slate-800 mb-2">{address.name}</p>
                                 <p className="text-slate-500 font-medium">{address.house_no}, {address.area}</p>
                                 <p className="text-slate-500 font-medium">{address.city}, {address.state} - {address.pincode}</p>
-                                <div className="mt-6 pt-6 border-t border-slate-200/50 flex items-center gap-2 text-[#108542] font-black text-xs">
+                                <div className="mt-6 pt-6 border-t border-slate-200/50 flex items-center gap-2 text-[#4f46e5] font-black text-xs">
                                     <MdPhone size={16} /> {address.phone}
                                 </div>
                             </div>

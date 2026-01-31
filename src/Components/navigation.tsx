@@ -23,9 +23,9 @@ export const getNavbarItems = (role: string) => {
         { name: "Profile", path: "/pages/dealerprofile", icon: <MdAccountCircle /> },
       ];
 
-    case 'main dealer':
+    case 'admin':
       return [
-        { name: "Overview", path: "/pages/dashboard", icon: <MdAnalytics /> },
+        { name: "Overview", path: "/pages/main-supplier-dashboard", icon: <MdAnalytics /> },
         { name: "Product Management", path: "/pages/product-management", icon: <MdGridView /> },
         { name: "Update Price & Stock", path: "/pages/pricing-management", icon: <MdPriceChange /> },
         { name: "Manage Dealers", path: "/pages/manage-dealers", icon: <MdGroups /> },
@@ -38,9 +38,8 @@ export const getNavbarItems = (role: string) => {
       return [
         { name: "Overview", path: "/pages/dashboard", icon: <MdAnalytics /> },
         { name: "Products", path: "/pages/subproducts", icon: <MdGridView /> },
-        { name: "Cart", path: "/pages/checkout", icon: <MdShoppingBag /> }, // Added Cart
-        { name: "Track Orders", path: "/pages/suborders", icon: <MdOutlineReceiptLong /> },
-        { name: "Manage Retail", path: "/pages/retail", icon: <MdGroups /> },
+        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, // Added Cart
+        { name: "Track Orders", path: "/pages/orders", icon: <MdOutlineReceiptLong /> },
         { name: "Profile", path: "/pages/subprofile", icon: <MdAccountCircle /> },
       ];
 
@@ -48,8 +47,8 @@ export const getNavbarItems = (role: string) => {
       return [
         { name: "Overview", path: "/pages/dashboard", icon: <MdAnalytics /> },
         { name: "Products", path: "/pages/retproducts", icon: <MdGridView /> },
-        { name: "Cart", path: "/pages/checkout", icon: <MdShoppingBag /> }, // Added Cart
-        { name: "Track Orders", path: "/pages/retorders", icon: <MdOutlineReceiptLong /> },
+        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, // Added Cart
+        { name: "Track Orders", path: "/pages/orders", icon: <MdOutlineReceiptLong /> },
         { name: "Profile", path: "/pages/retprofile", icon: <MdAccountCircle /> },
       ];
 
