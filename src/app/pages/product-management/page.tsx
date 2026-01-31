@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase'; // Fixed import path for client
 // Define types for TypeScript
 interface Variant {
   id?: number;
-  quantity_value: string;
+  quantity_value: number; // ✅ FIX
   quantity_unit: string;
   stock: number;
   supplier_price: number;
@@ -23,6 +23,7 @@ interface Variant {
   retail_discount: number;
   customer_discount: number;
 }
+
 
 interface Product {
   id: number;
@@ -373,11 +374,19 @@ export default function ProductManagement() {
     });
   };
 
-  const handleVariantChange = (index: number, field: keyof Variant, value: string | number) => {
-    const newVariants = [...form.variants];
-    newVariants[index][field] = value as any;
-    setForm({ ...form, variants: newVariants });
+const handleVariantChange = <K extends keyof Variant>(
+  index: number,
+  field: K,
+  value: Variant[K]
+) => {
+  const newVariants = [...form.variants];
+  newVariants[index] = {
+    ...newVariants[index],
+    [field]: value,
   };
+  setForm({ ...form, variants: newVariants });
+};
+
 
   const addVariant = () => {
     setForm({
