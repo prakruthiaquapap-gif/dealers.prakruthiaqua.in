@@ -1,10 +1,13 @@
-import { 
-  MdDashboard, 
-  MdGridView, 
-  MdOutlineReceiptLong, 
-  MdAccountCircle, 
+import {
+  MdDashboard,
+  MdGridView,
+  MdOutlineReceiptLong,
+  MdAccountCircle,
   MdShoppingBag,
-  MdAnalytics 
+  MdAnalytics,
+  MdPriceChange,
+  MdGroups,
+  MdPersonAdd
 } from 'react-icons/md';
 
 export const getNavbarItems = (role: string) => {
