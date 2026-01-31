@@ -107,7 +107,7 @@ export default function ProductManagement() {
     image_urls: [],
     variants: [
       {
-        quantity_value: '',
+quantity_value: 0,
         quantity_unit: '',
         stock: 0,
         supplier_price: 0,
@@ -356,7 +356,7 @@ export default function ProductManagement() {
       image_urls: [],
       variants: [
         {
-          quantity_value: '',
+quantity_value: 0,
           quantity_unit: '',
           stock: 0,
           supplier_price: 0,
@@ -394,7 +394,7 @@ const handleVariantChange = <K extends keyof Variant>(
       variants: [
         ...form.variants,
         {
-          quantity_value: '',
+quantity_value: 0,
           quantity_unit: '',
           stock: 0,
           supplier_price: 0,
