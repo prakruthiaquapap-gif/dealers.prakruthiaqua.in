@@ -152,6 +152,8 @@ export default function ProductManagement() {
     }
   };
 
+  
+
   useEffect(() => {
     if (!selectedProduct) return;
     const images = selectedProduct.image_urls?.length ? selectedProduct.image_urls : [selectedProduct.image_url];
@@ -532,6 +534,14 @@ export default function ProductManagement() {
     setShowAddModal(true);
   };
 
+  const toggleProductSelection = (productId: number) => {
+  setSelectedProducts(prev =>
+    prev.includes(productId)
+      ? prev.filter(id => id !== productId)
+      : [...prev, productId]
+  );
+};
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto font-inter bg-white min-h-screen">
       <header className={`
@@ -746,15 +756,16 @@ export default function ProductManagement() {
 
             return (
               <article
-                key={p.id}
-                className={`
-            group relative bg-white rounded-[2.5rem] overflow-hidden transition-all duration-500
-            ${isSelected
-                    ? 'ring-4 ring-indigo-500 ring-offset-4 scale-[0.98] shadow-xl'
-                    : 'hover:shadow-2xl hover:shadow-gray-200/50 border border-gray-100 hover:-translate-y-2'}
-          `}
-                onClick={() => isSelectionMode ? toggleProductSelection(p.id) : handleViewDetails(p)}
-              >
+    key={p.id}
+    className={`
+      group relative bg-white rounded-[2.5rem] overflow-hidden transition-all duration-500
+      ${isSelected
+        ? 'ring-4 ring-indigo-500 ring-offset-4 scale-[0.98] shadow-xl'
+        : 'hover:shadow-2xl hover:shadow-gray-200/50 border border-gray-100 hover:-translate-y-2'}
+    `}
+    onClick={() => isSelectionMode ? toggleProductSelection(p.id) : handleViewDetails(p)}
+  >
+
                 {/* Top Image Section */}
                 <div className="relative h-64 overflow-hidden bg-gray-50">
                   <img
