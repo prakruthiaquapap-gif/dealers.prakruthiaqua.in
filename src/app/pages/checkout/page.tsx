@@ -65,53 +65,81 @@ export default function CheckoutPage() {
 
     // --- ORDER LOGIC ---
     // --- UPDATED ORDER LOGIC ---
-    const finalizeOrder = async (userId: string, paymentId: string) => {
-        try {
-            // 1. Insert into dealer_orders
-            const { data: order, error: orderError } = await supabase.from('dealer_orders').insert([{
-                dealer_id: userId,
-                total_amount: finalTotal,
-                token_amount: paymentMethod === 'online' ? finalTotal : 0,
-                remaining_amount: paymentMethod === 'online' ? 0 : finalTotal,
-                payment_status: paymentMethod === 'online' ? 'paid' : 'pending',
-                delivery_status: 'pending',
-                payment_id: paymentId,
-                shipping_address: formData,
-                items: cartItems,
-                paid_amount: paymentMethod === 'online' ? finalTotal : 0
-            }]).select().single();
+  // --- UPDATED DYNAMIC ORDER LOGIC ---
+const finalizeOrder = async (userId: string, paymentId: string) => {
+    try {
+        setSubmitting(true);
 
-            if (orderError) throw orderError;
+        // 1. Determine correct table and ID column based on role
+        let targetTable = 'dealer_orders';
+        let idColumn = 'dealer_id';
 
-            // 2. Insert into payment_logs (Required for your SQL table)
-            if (paymentMethod === 'online' || paymentId !== 'CASH_ON_DELIVERY') {
-                const { error: logError } = await supabase.from('payment_logs').insert([{
-                    order_id: order.id.toString(),
-                    user_id: userId,
-                    amount_paid: finalTotal,
-                    remaining_balance: 0
-                }]);
-                if (logError) console.error("Payment Log Error:", logError);
-            }
+        const formattedRole = userRole.toLowerCase().trim();
 
-            // 3. Clear Cart
-            await supabase.from('dealer_cart').delete().eq('dealer_id', userId);
-
-            toast.success("Order Placed Successfully!");
-
-            // Refresh cart count globally
-            window.dispatchEvent(new Event('cartUpdated'));
-
-            // --- REDIRECT TO ORDERS PAGE ---
-            router.push('/pages/orders');
-
-        } catch (err) {
-            toast.error("Error saving order details");
-            console.error(err);
-        } finally {
-            setSubmitting(false);
+        if (formattedRole === 'sub dealer') {
+            targetTable = 'subdealer_orders';
+            idColumn = 'subdealer_id';
+        } else if (formattedRole === 'retailer outlet' || formattedRole === 'retailer') {
+            targetTable = 'retail_orders';
+            idColumn = 'retail_id';
         }
-    };
+
+        // 2. Prepare the base order object (Columns common to ALL tables)
+      // Inside finalizeOrder in CheckoutPage
+const orderData: any = {
+    [idColumn]: userId,
+    total_amount: finalTotal,
+    // If COD, they paid nothing yet. If Online, they paid everything.
+    token_amount: paymentMethod === 'online' ? finalTotal : 0,
+    paid_amount: paymentMethod === 'online' ? finalTotal : 0,
+    remaining_amount: paymentMethod === 'online' ? 0 : finalTotal,
+    payment_status: paymentMethod === 'online' ? 'paid' : 'pending',
+    payment_id: paymentId, // Will be 'CASH_ON_DELIVERY' for COD
+    delivery_status: 'pending',
+    shipping_address: formData,
+    items: cartItems,
+};
+
+        // 3. Add updated_at ONLY if it's the subdealer table
+        if (targetTable === 'subdealer_orders') {
+            orderData.updated_at = new Date();
+        }
+
+        // 4. Insert into the dynamic table
+        const { data: order, error: orderError } = await supabase
+            .from(targetTable)
+            .insert([orderData])
+            .select()
+            .single();
+
+        if (orderError) throw orderError;
+
+        // 5. Insert into payment_logs
+        if (paymentMethod === 'online' || paymentId !== 'CASH_ON_DELIVERY') {
+            const { error: logError } = await supabase.from('payment_logs').insert([{
+                order_id: order.id.toString(),
+                user_id: userId,
+                amount_paid: finalTotal,
+                remaining_balance: paymentMethod === 'online' ? 0 : finalTotal
+            }]);
+            if (logError) console.error("Payment Log Error:", logError);
+        }
+
+        // 6. Clear the Cart
+        await supabase.from('dealer_cart').delete().eq('dealer_id', userId);
+
+        toast.success(`Order Placed Successfully!`);
+        window.dispatchEvent(new Event('cartUpdated'));
+        router.push('/pages/orders');
+
+    } catch (err: any) {
+        // Detailed error logging to help you debug
+        toast.error(`Order Failed: ${err.message || 'Unknown Error'}`);
+        console.error("Finalize Order Error:", err.message);
+    } finally {
+        setSubmitting(false);
+    }
+};
 
     const initiateRazorpay = async (userId: string, email: string) => {
         if (finalTotal < 1) {

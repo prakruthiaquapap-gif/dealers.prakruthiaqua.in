@@ -5,8 +5,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase'; // Fixed import path for client
-
-// Define types for TypeScript
+import {
+  FiPackage, FiTrash2, FiSearch, FiChevronDown, FiFilter,
+  FiCheck, FiEdit3, FiEye, FiEyeOff, FiX, FiChevronRight,
+  FiFileText, FiDollarSign, FiPlusCircle, FiUploadCloud, FiXCircle
+} from 'react-icons/fi';
 interface Variant {
   id?: number;
   quantity_value: number; // ✅ FIX
@@ -79,6 +82,7 @@ const ACTIVE_FILTERS = [
 ];
 
 export default function ProductManagement() {
+  const brandColor = '#4f46e5';
   const supabase = createClient(); // Create the supabase client instance
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -530,558 +534,697 @@ export default function ProductManagement() {
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto font-inter bg-white min-h-screen">
-      <header className={`flex ${isMobile ? 'flex-col' : 'flex-row'} justify-between items-end gap-5 md:gap-10 mb-10 border-b border-gray-200 pb-6`}>
-        <div className="flex flex-col gap-1">
-          <h1 className={`text-3xl md:text-4xl font-black text-gray-900 m-0 leading-tight ${isMobile ? 'text-2xl' : ''}`}>Product Inventory</h1>
+      <header className={`
+  relative transition-all duration-300 ease-in-out
+  flex ${isMobile ? 'flex-col gap-6' : 'flex-row items-center justify-between'} 
+  mb-10 p-6 md:p-8 rounded-[2rem] border
+  ${isSelectionMode
+          ? 'bg-indigo-50/50 border-indigo-100 ring-4 ring-indigo-50/20'
+          : 'bg-white border-gray-100 shadow-sm'}
+`}>
+
+        {/* Left Side: Titles & Context */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none">
+              Product Inventory
+            </h1>
+            {isSelectionMode && (
+              <span className="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white animate-pulse">
+                Live Edit
+              </span>
+            )}
+          </div>
+
           {isSelectionMode ? (
-            <div className="flex items-center gap-2 text-indigo-600 font-semibold text-sm" aria-live="polite">
-              <span className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" aria-hidden="true"></span>
-              Selection Mode Active
-            </div>
+            <p className="text-indigo-600 font-bold text-sm flex items-center gap-2">
+              <FiPackage className="animate-bounce" />
+              {selectedProducts.length} items currently staged for action
+            </p>
           ) : (
-            <p className="text-gray-600 m-0 text-sm">Manage your products and pricing tiers</p>
+            <p className="text-gray-400 font-medium text-sm">
+              Overview of your stock levels and multi-tier pricing strategies
+            </p>
           )}
         </div>
 
-        <div className={`flex gap-3 md:gap-4 items-center ${isMobile ? 'flex-wrap justify-center w-full' : ''}`}>
+        {/* Right Side: Actions */}
+        <div className={`flex items-center gap-3 ${isMobile ? 'w-full' : ''}`}>
           {!isSelectionMode ? (
             <>
               <button
-                className={`px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold cursor-pointer transition-all hover:shadow-lg flex items-center gap-2 shadow-md ${isMobile ? 'flex-1 min-w-32 text-sm px-3 py-2.5' : ''}`}
-                onClick={() => setShowAddModal(true)}
-                aria-label="Add new product"
-              >
-                <span className="text-lg" aria-hidden="true">+</span> Add Product
-              </button>
-              <button
-                className={`px-5 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl font-semibold cursor-pointer ${isMobile ? 'flex-1 min-w-32 text-sm px-3 py-2.5' : ''}`}
                 onClick={() => setIsSelectionMode(true)}
-                aria-label="Enter selection mode to select multiple products"
+                className={`
+            px-5 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all
+            bg-white border border-gray-200 text-gray-500 hover:border-gray-900 hover:text-gray-900
+            ${isMobile ? 'flex-1' : ''}
+          `}
               >
                 Select Items
               </button>
+
+              <button
+                onClick={() => setShowAddModal(true)}
+                style={{ backgroundColor: brandColor }}
+                className={`
+            px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-white
+            shadow-xl shadow-gray-200 hover:brightness-110 active:scale-95 transition-all
+            flex items-center justify-center gap-2
+            ${isMobile ? 'flex-[1.5]' : ''}
+          `}
+              >
+                <span className="text-lg">+</span> Add Product
+              </button>
             </>
           ) : (
-            <>
+            <div className={`flex items-center gap-2 ${isMobile ? 'grid grid-cols-2 w-full' : ''}`}>
+              {/* Bulk Action: Delete */}
               <button
-                className={`px-5 py-3 bg-white text-gray-600 border border-gray-300 rounded-xl font-semibold cursor-pointer ${isMobile ? 'flex-1 min-w-24 text-xs px-3 py-2.5' : ''}`}
-                onClick={toggleSelectAll}
-                aria-label={selectedProducts.length === products.length ? "Deselect all products" : "Select all products"}
-              >
-                {selectedProducts.length === products.length ? "Deselect All" : "Select All"}
-              </button>
-              <button
-                className={`px-5 py-3 bg-red-500 text-white rounded-xl font-semibold cursor-pointer ${isMobile ? 'flex-1 min-w-24 text-xs px-3 py-2.5' : ''}`}
                 disabled={selectedProducts.length === 0}
                 onClick={() => deleteMultipleProducts(selectedProducts)}
-                aria-label={`Delete selected products (${selectedProducts.length})`}
+                className={`
+            group flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest
+            transition-all duration-200
+            ${selectedProducts.length > 0
+                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-200 hover:bg-rose-600'
+                    : 'bg-gray-100 text-gray-300 cursor-not-allowed'}
+          `}
               >
-                Delete Selected ({selectedProducts.length})
+                <FiTrash2 className={selectedProducts.length > 0 ? 'animate-pulse' : ''} />
+                Delete ({selectedProducts.length})
               </button>
+
+              {/* Bulk Action: Select/Deselect */}
               <button
-                className={`px-5 py-3 bg-transparent text-gray-500 border-none rounded-xl font-semibold cursor-pointer ${isMobile ? 'flex-1 min-w-24 text-xs px-3 py-2.5' : ''}`}
+                onClick={toggleSelectAll}
+                className="px-5 py-3 bg-white border border-indigo-200 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-colors"
+              >
+                {selectedProducts.length === products.length ? "Clear All" : "Select All"}
+              </button>
+
+              {/* Exit Selection Mode */}
+              <button
                 onClick={() => {
                   setIsSelectionMode(false);
                   setSelectedProducts([]);
                 }}
-                aria-label="Cancel selection mode"
+                className={`
+            px-5 py-3 text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-rose-500 transition-colors
+            ${isMobile ? 'col-span-2 text-center pt-2' : ''}
+          `}
               >
-                Cancel
+                Cancel Selection
               </button>
-            </>
+            </div>
           )}
         </div>
       </header>
 
       {/* FILTER BAR */}
-      <section className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-4 mb-8 bg-white p-4 rounded-2xl shadow-sm border border-gray-100`} aria-label="Product filters">
-        <div className="flex-1 relative">
-          <label htmlFor="search-input" className="sr-only">Search products by name or description</label>
-          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" aria-hidden="true">🔍</div>
+      {/* FILTER BAR */}
+      <section
+        className={`
+    flex ${isMobile ? 'flex-col' : 'flex-row items-center'} 
+    gap-4 mb-10 p-2 md:p-3 rounded-[2rem] 
+    bg-gray-50/50 border border-gray-100 transition-all duration-300
+    ${searchTerm ? 'ring-2 ring-indigo-50 bg-white' : ''}
+  `}
+        aria-label="Product filters"
+      >
+        {/* Search Input Container */}
+        <div className="flex-1 relative group">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-indigo-600 text-gray-400">
+            <FiSearch className="text-lg" />
+          </div>
           <input
             id="search-input"
-            placeholder="Search by name or description..."
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
+            type="text"
+            placeholder="Search inventory..."
+            className="
+        w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-white border-none
+        text-sm font-medium text-gray-900 placeholder-gray-400
+        shadow-sm transition-all outline-none
+        focus:ring-2 focus:ring-indigo-500/20 focus:shadow-md
+      "
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            aria-describedby="search-help"
           />
-          <span id="search-help" className="sr-only">Enter keywords to filter products</span>
         </div>
-        <div className="flex-1 flex gap-3">
-          <label htmlFor="category-select" className="sr-only">Select category</label>
-          <select
-            id="category-select"
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 text-sm font-medium cursor-pointer"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="All Categories">All Categories</option>
-            {Object.keys(CATEGORY_MAP).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="active-filter-select" className="sr-only">Filter by active status</label>
-          <select
-            id="active-filter-select"
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 text-sm font-medium cursor-pointer"
-            value={activeFilter}
-            onChange={(e) => setActiveFilter(e.target.value)}
-          >
-            {ACTIVE_FILTERS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+
+        {/* Select Group */}
+        <div className={`flex items-center gap-3 ${isMobile ? 'w-full' : 'min-w-[400px]'}`}>
+
+          {/* Category Filter */}
+          <div className="relative flex-1 group">
+            <select
+              id="category-select"
+              className="
+          w-full pl-4 pr-10 py-4 appearance-none rounded-[1.5rem] bg-white 
+          border-none text-xs font-bold uppercase tracking-wider text-gray-700
+          shadow-sm cursor-pointer outline-none transition-all
+          hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500/20
+        "
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="All Categories">All Categories</option>
+              {Object.keys(CATEGORY_MAP).map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <FiChevronDown />
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative flex-1 group">
+            <select
+              id="active-filter-select"
+              className="
+          w-full pl-4 pr-10 py-4 appearance-none rounded-[1.5rem] bg-white 
+          border-none text-xs font-bold uppercase tracking-wider text-gray-700
+          shadow-sm cursor-pointer outline-none transition-all
+          hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500/20
+        "
+              value={activeFilter}
+              onChange={(e) => setActiveFilter(e.target.value)}
+            >
+              {ACTIVE_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <FiFilter />
+            </div>
+          </div>
+
         </div>
       </section>
 
       {/* GRID */}
       {loading ? (
-        <div className="text-center py-24 text-gray-500" role="status" aria-live="polite">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" aria-hidden="true"></div>
-          <p>Loading products...</p>
+        <div className="flex flex-col items-center justify-center py-32 text-gray-400" role="status">
+          <div className="relative w-16 h-16 mb-4">
+            <div className="absolute inset-0 border-4 border-indigo-50 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          <p className="font-bold tracking-widest uppercase text-[10px]">Syncing Inventory...</p>
         </div>
       ) : (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8" aria-label="Product list">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8" aria-label="Product list">
           {products.length === 0 && (
-            <div className="col-span-full text-center py-16 bg-gray-50 rounded-2xl text-gray-400 border-2 border-dashed border-gray-200" role="status">
-              No products found matching your criteria.
+            <div className="col-span-full text-center py-24 bg-gray-50/50 rounded-[3rem] border-2 border-dashed border-gray-100">
+              <FiPackage className="mx-auto text-4xl text-gray-200 mb-4" />
+              <p className="text-gray-400 font-medium">No products match your current filters.</p>
             </div>
           )}
-          {products.map((p) => (
-            <article
-              key={p.id}
-              className={`relative bg-white rounded-3xl overflow-hidden transition-all duration-300 ease-out shadow-sm hover:shadow-lg cursor-pointer ${selectedProducts.includes(p.id) ? 'outline-2 outline-indigo-500 bg-indigo-50 scale-95' : 'outline-1 outline-gray-200'
-                }`}
-              tabIndex={0}
-              role="button"
-              aria-label={`Product: ${p.product_name}, Category: ${p.category}, Stock: ${p.variants.reduce((s, v) => s + v.stock, 0)}, Price: ₹${p.supplier_price}`}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleViewDetails(p);
-                }
-              }}
-              onClick={() => handleViewDetails(p)}
-            >
-              {/* Checkbox Overlay */}
-              <div className={`absolute top-4 left-4 z-20 ${isSelectionMode ? 'flex' : 'hidden'}`}>
-                <input
-                  type="checkbox"
-                  checked={selectedProducts.includes(p.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedProducts([...selectedProducts, p.id]);
-                    } else {
-                      setSelectedProducts(selectedProducts.filter((id) => id !== p.id));
-                    }
-                  }}
-                  className="w-6 h-6 cursor-pointer accent-indigo-600"
-                  aria-label={`Select ${p.product_name}`}
-                />
-              </div>
 
-              <div className="relative h-56 bg-gray-100">
-                <img
-                  src={p.image_urls?.length ? p.image_urls[productImageIndices[p.id] || 0] : p.image_url}
-                  className="w-full h-full object-cover"
-                  alt={`Image of ${p.product_name}`}
-                />
-                <div className={`absolute bottom-4 right-4 px-3 py-1.5 rounded-xl text-xs font-black backdrop-blur-sm ${p.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                  {p.active ? '● Active' : '○ Inactive'}
-                </div>
-              </div>
+          {products.map((p) => {
+            const totalStock = p.variants?.reduce((s, v) => s + v.stock, 0) || 0;
+            const isSelected = selectedProducts.includes(p.id);
 
-              <div className="p-6">
-                <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{p.category} • {p.subcategory}</span>
-                <h3 className="text-xl font-black text-gray-900 mt-2 mb-4 leading-tight">{p.product_name}</h3>
+            return (
+              <article
+                key={p.id}
+                className={`
+            group relative bg-white rounded-[2.5rem] overflow-hidden transition-all duration-500
+            ${isSelected
+                    ? 'ring-4 ring-indigo-500 ring-offset-4 scale-[0.98] shadow-xl'
+                    : 'hover:shadow-2xl hover:shadow-gray-200/50 border border-gray-100 hover:-translate-y-2'}
+          `}
+                onClick={() => isSelectionMode ? toggleProductSelection(p.id) : handleViewDetails(p)}
+              >
+                {/* Top Image Section */}
+                <div className="relative h-64 overflow-hidden bg-gray-50">
+                  <img
+                    src={p.image_urls?.length ? p.image_urls[productImageIndices[p.id] || 0] : p.image_url}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    alt={p.product_name}
+                  />
 
-                <div className="flex justify-between items-center mb-5">
-                  <div className={`flex items-center gap-1.5 text-sm font-semibold ${p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${p.variants.reduce((s, v) => s + v.stock, 0) > 0 ? 'bg-green-500' : 'bg-red-500'
-                      }`}></div>
-                    {p.variants.reduce((s, v) => s + v.stock, 0)} in stock
+                  {/* Status & Category Overlay */}
+                  <div className="absolute top-4 inset-x-4 flex justify-between items-start">
+                    <span className={`
+                px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter backdrop-blur-md
+                ${p.active ? 'bg-emerald-500/90 text-white' : 'bg-rose-500/90 text-white'}
+              `}>
+                      {p.active ? 'Active' : 'Archived'}
+                    </span>
+
+                    {isSelectionMode && (
+                      <div className={`
+                  w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all
+                  ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-lg' : 'bg-white/50 border-white'}
+                `}>
+                        {isSelected && <FiCheck className="text-white" />}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-2xl font-black text-gray-900">₹{p.supplier_price}</div>
+
+                  {/* Price Tag Overlay */}
+                  <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm">
+                    <span className="text-xs font-bold text-gray-400 mr-1">₹</span>
+                    <span className="text-xl font-black text-gray-900">{p.supplier_price}</span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button className="col-span-2 py-3 bg-indigo-600 text-white rounded-xl font-bold cursor-pointer mb-1" onClick={(e) => { e.stopPropagation(); handleViewDetails(p); }} aria-label={`View details for ${p.product_name}`}>
-                    View Details
-                  </button>
-                  <button className="py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-bold cursor-pointer text-gray-700" onClick={(e) => { e.stopPropagation(); handleEditProduct(p); }} aria-label={`Edit ${p.product_name}`}>
-                    Edit
-                  </button>
-                  <button
-                    className={`py-2.5 border border-gray-300 rounded-xl bg-white text-sm font-bold cursor-pointer ${p.active ? 'text-orange-600' : 'text-green-600'
-                      }`}
-                    onClick={(e) => { e.stopPropagation(); toggleActive(p); }}
-                    aria-label={p.active ? `Deactivate ${p.product_name}` : `Activate ${p.product_name}`}
-                  >
-                    {p.active ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    className="py-2.5 bg-red-50 text-red-700 border-none rounded-xl text-sm font-bold cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`Delete "${p.product_name}"?`)) {
-                        deleteProduct(p.id);
-                        fetchProducts();
-                      }
-                    }}
-                    aria-label={`Delete ${p.product_name}`}
-                  >
-                    Delete
-                  </button>
+                {/* Content Section */}
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{p.category}</span>
+                    <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.subcategory}</span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-gray-900 leading-tight mb-4 group-hover:text-indigo-600 transition-colors">
+                    {p.product_name}
+                  </h3>
+
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${totalStock > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                      <span className="text-xs font-bold text-gray-500">{totalStock} in stock</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Grid */}
+                  {!isSelectionMode && (
+                    <div className="space-y-2">
+                      <button
+                        className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-gray-200"
+                        onClick={(e) => { e.stopPropagation(); handleViewDetails(p); }}
+                      >
+                        Quick View
+                      </button>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          className="p-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex justify-center"
+                          onClick={(e) => { e.stopPropagation(); handleEditProduct(p); }}
+                          title="Edit Product"
+                        >
+                          <FiEdit3 />
+                        </button>
+                        <button
+                          className={`p-3 rounded-xl transition-colors flex justify-center ${p.active ? 'bg-gray-50 text-orange-500 hover:bg-orange-50' : 'bg-gray-50 text-emerald-500 hover:bg-emerald-50'}`}
+                          onClick={(e) => { e.stopPropagation(); toggleActive(p); }}
+                          title={p.active ? "Deactivate" : "Activate"}
+                        >
+                          {p.active ? <FiEyeOff /> : <FiEye />}
+                        </button>
+                        <button
+                          className="p-3 bg-gray-50 text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-colors flex justify-center"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete ${p.product_name}?`)) deleteProduct(p.id);
+                          }}
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </section>
       )}
 
       {/* DETAILS MODAL */}
       {showDetailsModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-lg flex justify-center items-center p-5 z-50" role="dialog" aria-modal="true" aria-labelledby="details-title">
-          <div className="bg-white w-full max-w-2xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-gray-200 flex justify-between items-center">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex justify-center items-center p-4 md:p-10 z-[100]" role="dialog" aria-modal="true">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+
+            {/* Sticky Top Header */}
+            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white/80 backdrop-blur-sm sticky top-0 z-10">
               <div>
-                <h2 id="details-title" className="text-2xl font-black text-gray-900 m-0">Product Overview</h2>
-                <p className="text-gray-600 m-0 text-sm">Full specifications and pricing</p>
+                <h2 className="text-2xl font-black text-gray-900 leading-none mb-1">Product Intelligence</h2>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Specifications & Multi-Tier Pricing</p>
               </div>
-              <button className="bg-transparent border-none text-xl cursor-pointer w-8 h-8 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center" onClick={() => setShowDetailsModal(false)} aria-label="Close product details modal">
-                ×
+              <button
+                className="w-10 h-10 rounded-2xl bg-gray-50 text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all flex items-center justify-center text-xl"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                <FiX />
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto flex-1 bg-gray-50">
-              <div className="flex gap-8 mb-8 items-center">
-                <img
-                  src={selectedProduct.image_urls?.[currentImageIndex] || selectedProduct.image_url}
-                  className="w-48 h-48 rounded-3xl object-cover shadow-lg"
-                  alt={`Detailed image of ${selectedProduct.product_name}`}
-                />
-                <div className="flex-1">
-                  <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProduct.category} / {selectedProduct.subcategory}</span>
-                  <h3 className="text-3xl font-black mt-1 mb-0">{selectedProduct.product_name}</h3>
+            <div className="overflow-y-auto flex-1 custom-scrollbar">
+              <div className="p-8">
+                {/* Hero Section */}
+                <div className="flex flex-col md:flex-row gap-10 mb-10">
+                  {/* Image Gallery Area */}
+                  <div className="md:w-1/3">
+                    <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner group">
+                      <img
+                        src={selectedProduct.image_urls?.[currentImageIndex] || selectedProduct.image_url}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        alt={selectedProduct.product_name}
+                      />
+                    </div>
+                    {/* Image Indicators */}
+                    {selectedProduct.image_urls?.length > 1 && (
+                      <div className="flex gap-2 mt-4 justify-center">
+                        {selectedProduct.image_urls.map((_, idx) => (
+                          <div
+                            key={idx}
+                            className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="mt-4 p-3 bg-gray-100 rounded-xl">
-                    <label className="text-xs font-semibold text-gray-600 mb-1 block" htmlFor="variant-select">Selected Variant</label>
-                    <select
-                      id="variant-select"
-                      value={selectedVariantId || ''}
-                      onChange={(e) => setSelectedVariantId(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none"
-                    >
-                      {selectedProduct.variants.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.quantity_value}{v.quantity_unit} — Stock: {v.stock}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Core Info */}
+                  <div className="md:w-2/3 flex flex-col justify-center">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full">
+                        {selectedProduct.category}
+                      </span>
+                      <FiChevronRight className="text-gray-300" />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {selectedProduct.subcategory}
+                      </span>
+                    </div>
+
+                    <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tight leading-tight">
+                      {selectedProduct.product_name}
+                    </h3>
+
+                    {/* Variant Picker (Pill Style) */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variant</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProduct.variants.map((v) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setSelectedVariantId(Number(v.id))}
+                            className={`
+                        px-4 py-3 rounded-2xl text-xs font-bold transition-all border
+                        ${selectedVariantId === v.id
+                                ? 'bg-gray-900 border-gray-900 text-white shadow-lg scale-105'
+                                : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}
+                      `}
+                          >
+                            {v.quantity_value} {v.quantity_unit}
+                            <span className={`block text-[9px] mt-0.5 opacity-60 ${selectedVariantId === v.id ? 'text-indigo-200' : 'text-gray-400'}`}>
+                              Stock: {v.stock}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-gray-100 mb-10" />
+
+                {/* Details & Pricing */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                  {/* Description Area */}
+                  <div className="lg:col-span-1">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <FiFileText className="text-indigo-500" /> Product Intelligence
+                    </h4>
+                    <p className="text-sm leading-relaxed text-gray-600 font-medium">
+                      {selectedProduct.description}
+                    </p>
+                  </div>
+
+                  {/* Pricing Matrix */}
+                  <div className="lg:col-span-2">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <FiDollarSign className="text-indigo-500" /> Multi-Tier Pricing Matrix
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {(['supplier', 'dealer', 'subdealer', 'retail', 'customer'] as const).map((tier) => {
+                        const variant = selectedProduct.variants.find(v => v.id === selectedVariantId);
+                        const price = variant?.[`${tier}_price` as keyof typeof variant];
+                        const discount = variant?.[`${tier}_discount` as keyof typeof variant];
+
+                        return (
+                          <div key={tier} className="group p-5 bg-gray-50/50 rounded-3xl border border-gray-100 hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-3 group-hover:text-indigo-600 transition-colors">
+                              {tier}
+                            </p>
+                            <div className="flex items-baseline gap-1 mb-1">
+                              <span className="text-xs font-bold text-gray-400">₹</span>
+                              <span className="text-2xl font-black text-gray-900 tracking-tight">{Number(price).toLocaleString()}</span>
+                            </div>
+                            <div className="inline-flex items-center px-2 py-0.5 bg-emerald-100 rounded-lg">
+                              <span className="text-[10px] font-black text-emerald-700">
+                                {discount}% OFF
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="mb-6">
-                <h4 className="text-lg font-black text-gray-900 mb-3">Description</h4>
-                <p className="text-sm leading-relaxed text-gray-700 m-0">{selectedProduct.description}</p>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="text-lg font-black text-gray-900 mb-3">Pricing Structure</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {([
-                    'supplier',
-                    'dealer',
-                    'subdealer',
-                    'retail',
-                    'customer',
-                  ] as const).map((tier) => {
-                    const variant = selectedProduct.variants.find(
-                      (v) => v.id === selectedVariantId
-                    );
-
-                    return (
-                      <div key={tier} className="p-4 bg-white border border-gray-300 rounded-2xl text-center">
-                        <span className="block text-xs font-black text-gray-400 uppercase mb-2">
-                          {tier}
-                        </span>
-
-                        <span className="text-xl font-black text-gray-900">
-                          ₹{
-                            tier === 'supplier'
-                              ? variant?.supplier_price
-                              : tier === 'dealer'
-                                ? variant?.dealer_price
-                                : tier === 'subdealer'
-                                  ? variant?.subdealer_price
-                                  : tier === 'retail'
-                                    ? variant?.retail_price
-                                    : variant?.customer_price
-                          }
-                        </span>
-
-                        <span className="block text-xs text-green-600 mt-1">
-                          Discount:{
-                            tier === 'supplier'
-                              ? variant?.supplier_discount
-                              : tier === 'dealer'
-                                ? variant?.dealer_discount
-                                : tier === 'subdealer'
-                                  ? variant?.subdealer_discount
-                                  : tier === 'retail'
-                                    ? variant?.retail_discount
-                                    : variant?.customer_discount
-                          }%
-                        </span>
-                      </div>
-                    );
-                  })}
-
-                </div>
-              </div>
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="px-8 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl font-bold text-xs uppercase tracking-widest hover:border-gray-900 hover:text-gray-900 transition-all"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => {
+                  handleEditProduct(selectedProduct);
+                  setShowDetailsModal(false);
+                }}
+                className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
+              >
+                Modify Product
+              </button>
             </div>
           </div>
         </div>
       )}
 
+
       {/* ADD/EDIT MODAL */}
       <div className="relative">
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-lg flex justify-center items-center p-5 z-50" role="dialog" aria-modal="true" aria-labelledby="add-edit-title">
-            <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden">
-              <div className="p-8 border-b border-gray-200 flex justify-between items-center">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex justify-center items-center p-4 md:p-10 z-[100]" role="dialog" aria-modal="true">
+            <div className="bg-white w-full max-w-5xl max-h-[92vh] rounded-[3rem] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+
+              {/* Header */}
+              <div className="px-10 py-8 border-b border-gray-100 flex justify-between items-center bg-white">
                 <div>
-                  <h2 id="add-edit-title" className="text-2xl font-black text-gray-900 m-0">{isEditing ? 'Edit Product' : 'Create New Product'}</h2>
-                  <p className="text-gray-600 m-0 text-sm">Enter product details and variants</p>
+                  <h2 className="text-2xl font-black text-gray-900 leading-none mb-1">
+                    {isEditing ? 'Modify Product' : 'Inventory Onboarding'}
+                  </h2>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    {isEditing ? 'Updating existing catalog entry' : 'Define new product specifications'}
+                  </p>
                 </div>
-                <button className="bg-transparent border-none text-xl cursor-pointer w-8 h-8 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center" onClick={() => setShowAddModal(false)} aria-label="Close add/edit product modal">
-                  ×
+                <button
+                  className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all flex items-center justify-center text-2xl"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  <FiX />
                 </button>
               </div>
 
-              <div className="p-8 overflow-y-auto flex-1 bg-gray-50">
-                <form onSubmit={(e) => { e.preventDefault(); saveProduct(); }}>
-                  <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-100">
-                    <div className="text-lg font-black text-gray-900 mb-4">Basic Information</div>
-                    <div className="mb-4">
-                      <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="product-name">Product Name <span className="text-red-500">*</span></label>
-                      <input
-                        id="product-name"
-                        name="name"
-                        value={form.name}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                        placeholder="e.g. Premium Arabica Blend"
-                        required
-                        aria-describedby="name-error"
-                      />
-                      {errors.name && <p id="name-error" className="text-xs text-red-500 mt-1 font-medium">{errors.name}</p>}
-                    </div>
-                    <div className="mb-4">
-                      <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="product-description">Description <span className="text-red-500">*</span></label>
-                      <textarea
-                        id="product-description"
-                        name="description"
-                        value={form.description}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500 min-h-24 resize-vertical"
-                        placeholder="Key features..."
-                        required
-                        aria-describedby="description-error"
-                      />
-                      {errors.description && <p id="description-error" className="text-xs text-red-500 mt-1 font-medium">{errors.description}</p>}
+              {/* Scrollable Form Body */}
+              <div className="p-10 overflow-y-auto flex-1 bg-gray-50/50 custom-scrollbar">
+                <form onSubmit={(e) => { e.preventDefault(); saveProduct(); }} className="space-y-10">
+
+                  {/* 1. BASIC INFORMATION */}
+                  <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">01</div>
+                      <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Essential Details</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="category-select-modal">Category</label>
-                        <select
-                          id="category-select-modal"
-                          name="category"
-                          value={form.category}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Product Identity</label>
+                        <input
+                          name="name"
+                          value={form.name}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-black focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+                          placeholder="e.g. Industrial Submersible Pump"
                           required
-                          aria-describedby="category-error"
-                        >
-                          <option value="">Select Category</option>
-                          {Object.keys(CATEGORY_MAP).map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.category && <p id="category-error" className="text-xs text-red-500 mt-1 font-medium">{errors.category}</p>}
+                        />
                       </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="subcategory-select">Subcategory</label>
-                        <select
-                          id="subcategory-select"
-                          name="subcategory"
-                          value={form.subcategory}
+
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Narrative Description</label>
+                        <textarea
+                          name="description"
+                          value={form.description}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none min-h-32"
+                          placeholder="Describe technical specs, use-cases, and quality standards..."
                           required
-                          aria-describedby="subcategory-error"
-                        >
-                          <option value="">Select Sub</option>
-                          {form.category && CATEGORY_MAP[form.category].subcategories.map((sub) => (
-                            <option key={sub} value={sub}>
-                              {sub}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.subcategory && <p id="subcategory-error" className="text-xs text-red-500 mt-1 font-medium">{errors.subcategory}</p>}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Primary Category</label>
+                        <div className="relative">
+                          <select
+                            name="category"
+                            value={form.category}
+                            onChange={handleChange}
+                            className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-gray-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            required
+                          >
+                            <option value="">Select Category</option>
+                            {Object.keys(CATEGORY_MAP).map((cat) => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                          <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Sub-Classification</label>
+                        <div className="relative">
+                          <select
+                            name="subcategory"
+                            value={form.subcategory}
+                            onChange={handleChange}
+                            className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-gray-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            required
+                          >
+                            <option value="">Select Sub</option>
+                            {form.category && CATEGORY_MAP[form.category].subcategories.map((sub) => (
+                              <option key={sub} value={sub}>{sub}</option>
+                            ))}
+                          </select>
+                          <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-100">
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="text-lg font-black text-gray-900">Variants & Stock</div>
+                  {/* 2. VARIANTS & PRICING */}
+                  <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
+                    <div className="flex justify-between items-center mb-8">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">02</div>
+                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Variants & Multi-Tier Pricing</h3>
+                      </div>
                       <button
                         type="button"
                         onClick={addVariant}
-                        className="px-4 py-2 rounded-xl border border-indigo-600 bg-white text-indigo-600 cursor-pointer font-bold text-sm hover:bg-indigo-50 transition-all"
-                        aria-label="Add another variant"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                       >
-                        + Add Variant
+                        <FiPlusCircle className="text-sm" /> Add New Variant
                       </button>
                     </div>
 
-                    {form.variants.map((v, idx) => (
-                      <fieldset key={idx} className="bg-gray-50 rounded-2xl p-5 mb-4 border border-gray-100">
-                        <legend className="flex justify-between items-center mb-4">
-                          <span className="text-xs font-black text-indigo-600 bg-indigo-100 px-3 py-1 rounded-lg uppercase tracking-wide">Variant Configuration</span>
+                    <div className="space-y-6">
+                      {form.variants.map((v, idx) => (
+                        <div key={idx} className="group relative bg-gray-50/50 rounded-[2rem] p-8 border border-gray-100 hover:bg-white hover:border-indigo-100 transition-all">
                           {idx > 0 && (
                             <button
                               type="button"
                               onClick={() => removeVariant(idx)}
-                              className="px-2 py-1 rounded-md border border-red-500 bg-white text-red-600 cursor-pointer text-xs font-bold hover:bg-red-50"
-                              aria-label={`Remove variant ${idx + 1}`}
+                              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-rose-500 shadow-md border border-gray-100 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"
                             >
-                              Remove
+                              <FiTrash2 className="text-xs" />
                             </button>
                           )}
-                        </legend>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide" htmlFor={`qty-value-${idx}`}>QTY VALUE</label>
-                            <input
-                              id={`qty-value-${idx}`}
-                              type="number"
-                              value={v.quantity_value}
-                              onChange={(e) => handleVariantChange(idx, 'stock', Number(e.target.value))}
-
-                              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                              required
-                              aria-describedby={`qty-error-${idx}`}
-                            />
-                            {errors[`variant_qty_${idx}`] && <p id={`qty-error-${idx}`} className="text-xs text-red-500 mt-1 font-medium">{errors[`variant_qty_${idx}`]}</p>}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide" htmlFor={`qty-unit-${idx}`}>UNIT</label>
-                            <select
-                              id={`qty-unit-${idx}`}
-                              value={v.quantity_unit}
-                              onChange={(e) => handleVariantChange(idx, 'quantity_unit', e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                              required
-                              aria-describedby={`unit-error-${idx}`}
-                            >
-                              <option value="">Unit</option>
-                              {['g', 'kg', 'ml', 'pcs', 'liters'].map((u) => (
-                                <option key={u} value={u}>
-                                  {u}
-                                </option>
-                              ))}
-                            </select>
-                            {errors[`variant_unit_${idx}`] && <p id={`unit-error-${idx}`} className="text-xs text-red-500 mt-1 font-medium">{errors[`variant_unit_${idx}`]}</p>}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide" htmlFor={`stock-${idx}`}>STOCK</label>
-                            <input
-                              id={`stock-${idx}`}
-                              type="number"
-                              value={v.stock}
-onChange={(e) =>
-  handleVariantChange(idx, 'stock', Number(e.target.value))
-}
-                              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                          {[
-                            { f: 'supplier_price', label: 'SUPPLIER', discount: 'supplier_discount' },
-                            { f: 'dealer_price', label: 'DEALER', discount: 'dealer_discount' },
-                            { f: 'subdealer_price', label: 'SUB-DEALER', discount: 'subdealer_discount' },
-                            { f: 'retail_price', label: 'RETAIL', discount: 'retail_discount' },
-                            { f: 'customer_price', label: 'CUSTOMER', discount: 'customer_discount' },
-                          ].map((item) => (
-                            <div key={item.f}>
-                              <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide" htmlFor={`${item.f}-${idx}`}>{item.label}</label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 font-black text-gray-400" aria-hidden="true">₹</span>
-                                <input
-                                  id={`${item.f}-${idx}`}
-                                  type="number"
-                                  value={v[item.f as keyof Variant]}
-                                  onChange={(e) =>
-                                    handleVariantChange(
-                                      idx,
-                                      item.f as keyof Variant,
-                                      Number(e.target.value)
-                                    )
-                                  }
-                                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                                  required
-                                  aria-describedby={`${item.f}-error-${idx}`}
-                                />
-                              </div>
-                              {errors[`${item.f}_${idx}`] && <p id={`${item.f}-error-${idx}`} className="text-xs text-red-500 mt-1 font-medium">{errors[`${item.f}_${idx}`]}</p>}
-                              <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide mt-2" htmlFor={`${item.discount}-${idx}`}>DISCOUNT (%)</label>
+                          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8 pb-8 border-b border-gray-100">
+                            <div>
+                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Quantity Value</label>
                               <input
-                                id={`${item.discount}-${idx}`}
                                 type="number"
-                                value={v[item.discount as keyof Variant]}
-                                onChange={(e) =>
-                                  handleVariantChange(
-                                    idx,
-                                    item.discount as keyof Variant,
-                                    Number(e.target.value)
-                                  )
-                                }
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500"
-                                min="0"
-                                max="100"
-                                required
-                                aria-describedby={`${item.discount}-error-${idx}`}
+                                value={v.quantity_value}
+                                onChange={(e) => handleVariantChange(idx, 'quantity_value', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl bg-white border text-black border-gray-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                placeholder="0"
                               />
-                              {errors[`${item.discount}_${idx}`] && <p id={`${item.discount}-error-${idx}`} className="text-xs text-red-500 mt-1 font-medium">{errors[`${item.discount}_${idx}`]}</p>}
                             </div>
-                          ))}
-                        </div>
-                      </fieldset>
-                    ))}
-                  </div>
+                            <div>
+                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Unit</label>
+                              <select
+                                value={v.quantity_unit}
+                                onChange={(e) => handleVariantChange(idx, 'quantity_unit', e.target.value)}
+                                className="w-full px-4 py-3 text-black rounded-xl bg-white border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                              >
+                                <option value="">Unit</option>
+                                {['g', 'kg', 'ml', 'pcs', 'liters'].map((u) => <option key={u} value={u}>{u}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Current Stock</label>
+                              <input
+                                type="number"
+                                value={v.stock}
+                                onChange={(e) => handleVariantChange(idx, 'stock', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl text-black bg-white border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                              />
+                            </div>
+                          </div>
 
-                  <div className="mb-8 bg-white p-6 rounded-2xl border border-gray-100">
-                    <div className="text-lg font-black text-gray-900 mb-4">Media Assets</div>
-                    <label className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer transition-all hover:bg-gray-50 bg-gray-50" htmlFor="image-upload">
-                      <span className="text-2xl text-blue-500 mb-2" aria-hidden="true">📸</span>
-                      <span>Drop images here or click to upload (Max 6)</span>
+                          {/* Pricing Tiers Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            {[
+                              { f: 'supplier', label: 'Supplier' },
+                              { f: 'dealer', label: 'Dealer' },
+                              { f: 'subdealer', label: 'Sub-Dealer' },
+                              { f: 'retail', label: 'Retail' },
+                              { f: 'customer', label: 'End Customer' },
+                            ].map((tier) => (
+                              <div key={tier.f} className="space-y-2">
+                                <label className="block text-[9px] font-black text-gray-400 uppercase">{tier.label}</label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">₹</span>
+                                  <input
+                                    type="number"
+                                    value={v[`${tier.f}_price` as keyof Variant]}
+                                    onChange={(e) => handleVariantChange(idx, `${tier.f}_price` as keyof Variant, Number(e.target.value))}
+                                    className="w-full text-black pl-7 pr-3 py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-black outline-none focus:border-indigo-500"
+                                    placeholder="0"
+                                  />
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-[10px]">%</span>
+                                  <input
+                                    type="number"
+                                    value={v[`${tier.f}_discount` as keyof Variant]}
+                                    onChange={(e) => handleVariantChange(idx, `${tier.f}_discount` as keyof Variant, Number(e.target.value))}
+                                    className="w-full pl-3 text-black pr-7 py-2 rounded-lg bg-emerald-50/50 border border-emerald-100 text-[10px] font-bold text-emerald-700 outline-none"
+                                    placeholder="Disc"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* 3. MEDIA ASSETS */}
+                  <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">03</div>
+                      <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Visual Identity</h3>
+                    </div>
+
+                    <label htmlFor="image-upload" className="group flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-200 rounded-[2rem] cursor-pointer hover:bg-indigo-50/30 hover:border-indigo-300 transition-all bg-gray-50/50">
+                      <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-500 text-2xl mb-4 group-hover:scale-110 transition-transform">
+                        <FiUploadCloud />
+                      </div>
+                      <span className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1">Click to Upload</span>
+                      <span className="text-xs font-bold text-gray-400">SVG, PNG, JPG (Max 6 images)</span>
                       <input
                         id="image-upload"
                         type="file"
@@ -1091,48 +1234,50 @@ onChange={(e) =>
                         className="hidden"
                       />
                     </label>
-                    <div className="flex gap-3 mt-4 flex-wrap">
+
+                    <div className="flex gap-4 mt-8 flex-wrap">
                       {form.image_urls.map((url, i) => (
-                        <div key={i} className="relative w-20 h-20 rounded-lg overflow-visible border border-gray-300">
-                          <img src={url} className="w-full h-full object-cover rounded-lg" alt={`Product image ${i + 1}`} />
+                        <div key={i} className="group relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md">
+                          <img src={url} className="w-full h-full object-cover" alt="Preview" />
                           <button
                             type="button"
                             onClick={() => removeImage(i)}
-                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white border-2 border-white font-bold text-sm cursor-pointer shadow-md hover:bg-red-600 flex items-center justify-center"
-                            aria-label={`Remove image ${i + 1}`}
+                            className="absolute inset-0 bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xl"
                           >
-                            ×
+                            <FiXCircle />
                           </button>
                         </div>
                       ))}
                     </div>
-                    {errors.image_urls && <p className="text-xs text-red-500 mt-2 font-medium">{errors.image_urls}</p>}
-                  </div>
-
-                  <div className="p-6 border-t border-gray-200 flex justify-end gap-3 bg-white">
-                    <button
-                      type="button"
-                      className="px-6 py-3 rounded-xl border-none bg-gray-500 text-black cursor-pointer font-bold hover:bg-gray-600 transition-all"
-                      onClick={() => setShowAddModal(false)}
-                      aria-label="Cancel and close modal"
-                    >
-                      Discard
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-6 py-3 rounded-xl border-none bg-green-600 text-white cursor-pointer font-bold shadow-lg hover:shadow-xl transition-all"
-                      aria-label={isEditing ? 'Save product changes' : 'Publish new product'}
-                    >
-                      {isEditing ? 'Save Changes' : 'Publish Product'}
-                    </button>
-                  </div>
+                  </section>
                 </form>
+              </div>
+
+              {/* Sticky Footer Actions */}
+              <div className="p-8 border-t border-gray-100 bg-white flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 hover:text-gray-600 transition-all"
+                >
+                  Discard
+                </button>
+                <button
+                  type="submit"
+                  onClick={(e) => { e.preventDefault(); saveProduct(); }}
+                  className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-indigo-600 transition-all active:scale-95"
+                >
+                  {isEditing ? 'Save Product' : 'Publish to Catalog'}
+                </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* TOAST NOTIFICATION */}
         {successMessage && (
-          <div className="fixed bottom-8 right-8 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl z-50 font-semibold" role="alert" aria-live="assertive">
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-8 py-4 rounded-2xl shadow-2xl z-[200] font-black text-[10px] uppercase tracking-[0.2em] animate-in slide-in-from-bottom-5 fade-in duration-300 flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             {successMessage}
           </div>
         )}

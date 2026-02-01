@@ -1,17 +1,15 @@
-// app/add-retailer/page.tsx (for App Router in Next.js 13+)
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase'; // Fixed import
+import { createClient } from '@/utils/supabase';
 import {
   FiUser, FiMail, FiPhone, FiBriefcase, FiMapPin,
-  FiSave, FiLayers, FiLock, FiEye, FiEyeOff, FiHash
+  FiSave, FiLayers, FiLock, FiEye, FiEyeOff, FiHash, FiArrowLeft
 } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 
-// Define types for TypeScript
+// --- Types ---
 interface FormData {
   first_name: string;
   last_name: string;
@@ -29,299 +27,232 @@ interface AddRetailerProps {
   existingDealer?: FormData | null;
 }
 
+// --- Initial State for Clearing ---
+const initialState: FormData = {
+  first_name: '',
+  last_name: '',
+  email: '',
+  password: '',
+  phone: '',
+  company_name: '',
+  gst_number: '',
+  store_address: '',
+  address: '',
+  role: 'retail_outlet',
+};
+
+// --- Reusable Input Component ---
+const InputField = ({ label, icon: Icon, children }: any) => (
+  <div className="flex flex-col gap-1.5 w-full">
+    <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+    <div className="relative group">
+      {Icon && (
+        <Icon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+      )}
+      {children}
+    </div>
+  </div>
+);
+
 export default function AddRetailer({ existingDealer = null }: AddRetailerProps) {
   const router = useRouter();
-  const supabase = createClient(); // Create the supabase client instance
+  const supabase = createClient();
 
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Handle Window Resize for Responsive Layout
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    setIsMobile(window.innerWidth < 768);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const [formData, setFormData] = useState<FormData>(existingDealer || {
-    first_name: '',
-    last_name: '',
-    email: '',
-    password: '',
-    phone: '',
-    company_name: '',
-    gst_number: '',
-    store_address: '',
-    address: '',
-    role: 'retail_outlet',
-  });
+  const [formData, setFormData] = useState<FormData>(existingDealer || initialState);
 
   const isReviewMode = !!existingDealer;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (isReviewMode) return;
-    setErrorMsg('');
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: name === 'gst_number' ? value.toUpperCase() : value
-    });
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validations
     if (!isReviewMode && formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters!');
-      return;
+      return toast.error('Password must be at least 6 characters');
     }
+    
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
     if (formData.gst_number && !gstRegex.test(formData.gst_number)) {
-      toast.error('Invalid GST format!');
-      return;
+      return toast.error('Invalid GST format');
     }
 
     setLoading(true);
-    const toastId = toast.loading('Provisioning credentials...');
+    const toastId = toast.loading('Creating partner profile...');
 
     try {
-      // ... inside handleSubmit try block
+      // 1. Create Auth User
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        options: { data: { first_name: formData.first_name, role: formData.role } }
+        options: { 
+          data: { 
+            first_name: formData.first_name, 
+            role: formData.role 
+          } 
+        }
       });
 
       if (authError) throw authError;
+      if (!authData.user) throw new Error("Authentication failed");
 
-      // 1. Check if user exists before proceeding
-      if (!authData.user) {
-        throw new Error("User creation failed. Please check if the email is already registered.");
-      }
-
+      // 2. Insert into Dealers Table
       const { error: dbError } = await supabase.from('dealers').insert([
-        {
-          ...formData,
-          user_id: authData.user.id, // TypeScript is happy now!
-          approval_status: 'approved'
+        { 
+          ...formData, 
+          user_id: authData.user.id, 
+          approval_status: 'approved' 
         }
       ]);
-      // ... rest of the code
 
       if (dbError) throw dbError;
 
-      toast.success('Partner created successfully!', { id: toastId });
-      if (!existingDealer) router.push('/manage-partners'); // Adjust route as needed
+      // 3. Success Feedback
+      toast.success('Partner onboarded successfully!', { id: toastId });
+      
+      // 4. Clear Form Data
+      setFormData(initialState);
+      setShowPassword(false);
 
     } catch (err: any) {
-      toast.error(err.message, { id: toastId });
+      toast.error(err.message || 'An error occurred', { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-white p-4 md:p-6 font-inter">
-      <Toaster position="top-right" />
+  const inputClasses = "w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 text-slate-900";
 
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4">
+      <Toaster position="top-center" />
+      
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900">Partner Onboarding</h1>
-          <p className="text-gray-600 text-sm mt-1">Create business credentials for new partners.</p>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Partner Onboarding</h1>
+            <p className="text-slate-500">Add a new business partner to the system.</p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-10">
-          {/* Main Grid: Stacks on mobile */}
-          <div className={`grid gap-6 mb-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-
-            {/* Identity Section */}
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
-                <FiUser /> Identity
-              </h3>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-                <div className={`flex gap-3 ${isMobile ? 'flex-col' : 'flex-row'}`}>
-                  <input
-                    name="first_name"
-                    placeholder="First Name"
-                    value={formData.first_name}
-                    required
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
-                  />
-                  <input
-                    name="last_name"
-                    placeholder="Last Name"
-                    value={formData.last_name}
-                    required
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
-                  />
-                </div>
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-8 md:p-12 space-y-10">
+            
+            {/* Section 1: Personal Details */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><FiUser /></div>
+                <h3 className="font-bold text-slate-800">Primary Contact</h3>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="email@business.com"
-                    value={formData.email}
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputField label="First Name">
+                  <input name="first_name" placeholder="John" required className={inputClasses} value={formData.first_name} onChange={handleChange} />
+                </InputField>
+                <InputField label="Last Name">
+                  <input name="last_name" placeholder="Doe" required className={inputClasses} value={formData.last_name} onChange={handleChange} />
+                </InputField>
+                <InputField label="Email Address" icon={FiMail}>
+                  <input name="email" type="email" placeholder="john@company.com" required className={inputClasses} value={formData.email} onChange={handleChange} />
+                </InputField>
+                <InputField label="Create Password" icon={FiLock}>
+                  <input 
+                    name="password" 
+                    type={showPassword ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    required 
+                    className={inputClasses} 
+                    value={formData.password} 
+                    onChange={handleChange} 
                   />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Login Password</label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Set password"
-                    value={formData.password}
-                    required
-                    className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors">
                     {showPassword ? <FiEyeOff /> : <FiEye />}
                   </button>
-                </div>
+                </InputField>
               </div>
-            </div>
+            </section>
 
-            {/* Business Section */}
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
-                <FiBriefcase /> Business Profile
-              </h3>
+            {/* Section 2: Business Profile */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><FiBriefcase /></div>
+                <h3 className="font-bold text-slate-800">Business Profile</h3>
+              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Partner Type</label>
-                <div className="relative">
-                  <FiLayers className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
-                  >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputField label="Partner Type" icon={FiLayers}>
+                  <select name="role" className={`${inputClasses} appearance-none`} value={formData.role} onChange={handleChange}>
                     <option value="retail_outlet">Retail Outlet</option>
                     <option value="sub_dealer">Sub-Dealer</option>
                     <option value="dealer">Dealer</option>
                   </select>
+                </InputField>
+                <InputField label="GST Number" icon={FiHash}>
+                  <input name="gst_number" placeholder="15-digit GSTIN" required className={inputClasses} value={formData.gst_number} onChange={handleChange} />
+                </InputField>
+                <div className="md:col-span-2">
+                  <InputField label="Company / Store Name" icon={FiBriefcase}>
+                    <input name="company_name" placeholder="Legal Entity Name" required className={inputClasses} value={formData.company_name} onChange={handleChange} />
+                  </InputField>
                 </div>
+                <InputField label="Phone Number" icon={FiPhone}>
+                  <input name="phone" placeholder="+91" required className={inputClasses} value={formData.phone} onChange={handleChange} />
+                </InputField>
               </div>
+            </section>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">GST Number</label>
-                <div className="relative">
-                  <FiHash className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    name="gst_number"
-                    placeholder="15-digit GSTIN"
-                    value={formData.gst_number}
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
-                  />
-                </div>
+            {/* Section 3: Locations */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><FiMapPin /></div>
+                <h3 className="font-bold text-slate-800">Address Details</h3>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                <div className="relative">
-                  <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    name="phone"
-                    placeholder="+91 ..."
-                    value={formData.phone}
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    onChange={handleChange}
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-6">
+                <InputField label="Physical Store Address" icon={FiMapPin}>
+                  <textarea name="store_address" rows={2} placeholder="Physical shop location..." className={`${inputClasses} pl-12 pt-3 resize-none`} value={formData.store_address} onChange={handleChange} />
+                </InputField>
+                <InputField label="Billing Address" icon={FiMapPin}>
+                  <textarea name="address" rows={2} placeholder="Registered billing address..." className={`${inputClasses} pl-12 pt-3 resize-none`} value={formData.address} onChange={handleChange} />
+                </InputField>
               </div>
-            </div>
+            </section>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Company / Store Name</label>
-              <div className="relative">
-                <FiBriefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  name="company_name"
-                  placeholder="Legal Entity Name"
-                  value={formData.company_name}
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Physical Store Address</label>
-              <div className="relative">
-                <FiMapPin className="absolute left-4 top-4 text-gray-400" />
-                <textarea
-                  name="store_address"
-                  placeholder="Where is the shop located?"
-                  value={formData.store_address}
-                  required
-                  rows={2}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Billing Address</label>
-              <div className="relative">
-                <FiMapPin className="absolute left-4 top-4 text-gray-400" />
-                <textarea
-                  name="address"
-                  placeholder="Official registered address"
-                  value={formData.address}
-                  required
-                  rows={2}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className={`flex gap-4 pt-6 mt-6 border-t border-gray-200 ${isMobile ? 'flex-col-reverse' : 'flex-row justify-end'}`}>
+          {/* Footer Actions */}
+          <div className="bg-slate-50 px-8 py-6 flex flex-col-reverse md:flex-row justify-end gap-4 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => router.back()}
-              className={`px-6 py-3 rounded-xl border border-gray-300 bg-gray-50 text-gray-600 font-semibold hover:bg-gray-100 transition-all ${isMobile ? 'w-full' : ''}`}
+              onClick={() => setFormData(initialState)}
+              className="px-8 py-3 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-all"
             >
-              Discard
+              Clear Form
             </button>
             <button
               type="submit"
               disabled={loading}
-              className={`px-6 py-3 rounded-xl border-none bg-green-600 text-white font-semibold hover:bg-green-700 transition-all flex items-center justify-center gap-2 ${isMobile ? 'w-full' : ''}`}
+              className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {loading ? 'Processing...' : <><FiSave /> Save & Onboard</>}
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <FiSave className="text-lg" /> 
+                  <span>Register Partner</span>
+                </>
+              )}
             </button>
           </div>
         </form>

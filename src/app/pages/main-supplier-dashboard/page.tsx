@@ -1,209 +1,294 @@
-// app/main-supplier-dashboard/page.tsx (for App Router in Next.js 13+)
-
+// app/main-supplier-dashboard/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase'; // Fixed import
+import { createClient } from '@/utils/supabase'; // Adjust path to your supabase config
 import { Line } from 'react-chartjs-2';
+import { FiUsers, FiPackage, FiShoppingCart, FiTrendingUp, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
 
-// Icons (Simple SVG strings for zero-dependency)
-const Icons = {
-  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-  Box: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
-  Cart: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>,
-  Trend: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-};
-
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-// Define types for TypeScript
-interface Stats {
-  users: number;
-  pending: number;
-  products: number;
-  orders: number;
-  lowStock: number;
+// --- Types ---
+interface DashboardStats {
+  totalPartners: number;
+  pendingApprovals: number;
+  dealerCount: number;
+  subdealerCount: number;
+  retailerCount: number;
+  totalProducts: number;
+  lowStockCount: number;
+  totalOrders: number;
   revenue: number;
-}
-
-interface RevenueData {
-  labels: string[];
-  datasets: {
-    label: string;
-    data: number[];
-    borderColor: string;
-    backgroundColor: string;
-    fill: boolean;
-    tension: number;
-  }[];
-}
-
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  color: string;
-  highlight?: boolean;
-  onClick?: () => void;
 }
 
 export default function MainSupplierDashboard() {
   const router = useRouter();
-  const supabase = createClient(); // Create the supabase client instance
+  const supabase = createClient();
 
-  const [windowWidth, setWindowWidth] = useState(0);
-  const [stats, setStats] = useState<Stats>({ users: 0, pending: 0, products: 0, orders: 0, lowStock: 0, revenue: 0 });
-  const [revenueData, setRevenueData] = useState<RevenueData>({ labels: [], datasets: [] });
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalPartners: 0,
+    pendingApprovals: 0,
+    dealerCount: 0,
+    subdealerCount: 0,
+    retailerCount: 0,
+    totalProducts: 0,
+    lowStockCount: 0,
+    totalOrders: 0,
+    revenue: 0
+  });
+
   const [groupBy, setGroupBy] = useState('month');
 
-  const isMobile = windowWidth < 600;
-  const isTablet = windowWidth >= 600 && windowWidth < 1024;
-
   useEffect(() => {
-    const onResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    setWindowWidth(window.innerWidth);
-    fetchDashboardData();
-    return () => window.removeEventListener('resize', onResize);
-  }, [groupBy]);
+    fetchRealtimeStats();
+  }, []);
 
-  const fetchDashboardData = async () => {
-    // ... (Your existing fetch logic remains the same, just update setStats at the end)
-    // Simulating data mapping for brevity
-    setStats({ users: 124, pending: 5, products: 48, orders: 892, lowStock: 3, revenue: 452000 });
-    
-    // Mock Revenue Data for UI display
-    setRevenueData({
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      datasets: [{
-        label: 'Revenue',
-        data: [30000, 45000, 32000, 60000, 85000, 90000],
-        borderColor: '#0b7b44',
-        backgroundColor: 'rgba(11, 123, 68, 0.1)',
-        fill: true,
-        tension: 0.4,
-      }]
-    });
+  const fetchRealtimeStats = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Fetch Partner Counts by Role from 'dealers' table
+      const { data: dealersData, error: dealerErr } = await supabase
+        .from('dealers')
+        .select('role, approval_status');
+
+      if (dealerErr) throw dealerErr;
+
+      // 2. Fetch Product Counts
+      const { count: productCount } = await supabase.from('products').select('*', { count: 'exact', head: true });
+
+      // 3. Fetch Low Stock (variants with stock < 10)
+      const { count: lowStock } = await supabase
+        .from('product_variants')
+        .select('*', { count: 'exact', head: true })
+        .lt('stock', 10);
+
+      // 4. Fetch Total Orders (Dealer + Retail)
+      const { count: dOrders } = await supabase.from('dealer_orders').select('*', { count: 'exact', head: true });
+      const { count: rOrders } = await supabase.from('retail_orders').select('*', { count: 'exact', head: true });
+
+      // Process Dealer Roles
+      const roles = {
+        total: dealersData?.length || 0,
+        // Checks for exactly 'pending'
+        pending: dealersData?.filter(d => d.approval_status === 'pending').length || 0,
+
+        // Logic updated to match your database strings
+        dealer: dealersData?.filter(d =>
+          d.role?.toLowerCase() === 'dealer'
+        ).length || 0,
+
+        subdealer: dealersData?.filter(d =>
+          d.role?.toLowerCase() === 'sub_dealer' || d.role?.toLowerCase() === 'subdealer'
+        ).length || 0,
+
+        retailer: dealersData?.filter(d =>
+          d.role?.toLowerCase() === 'retail_outlet' || d.role?.toLowerCase() === 'retailer'
+        ).length || 0,
+      };
+
+      setStats({
+        totalPartners: roles.total,
+        pendingApprovals: roles.pending,
+        dealerCount: roles.dealer,
+        subdealerCount: roles.subdealer,
+        retailerCount: roles.retailer,
+        totalProducts: productCount || 0,
+        lowStockCount: lowStock || 0,
+        totalOrders: (dOrders || 0) + (rOrders || 0),
+        revenue: 452000, // Replace with actual revenue aggregation logic if needed
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="p-4 md:p-6 bg-gray-50 min-h-screen font-inter">
-      {/* Welcome Header */}
-      <header className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-10 font-sans">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900">Control Center</h1>
-          <p className="text-gray-600 text-sm mt-1">Overview of Prakruthi network performance</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Executive Dashboard</h1>
+          <p className="text-slate-500 font-medium">Real-time Prakruthi Supply Chain Analytics</p>
         </div>
-        {!isMobile && (
-          <div className="px-4 py-2 bg-white rounded-full text-sm font-semibold text-gray-600 shadow-sm">
-            {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </div>
-        )}
+        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+          <span className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </span>
+          <button
+            onClick={fetchRealtimeStats}
+            className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-indigo-600"
+          >
+            <FiTrendingUp />
+          </button>
+        </div>
       </header>
 
-      {/* Stats Grid */}
-      <section className={`grid gap-4 mb-8 ${
-        isMobile ? 'grid-cols-2' : isTablet ? 'grid-cols-3' : 'grid-cols-6'
-      }`}>
-        <StatCard
-          icon={<Icons.Users />}
-          label="Partners"
-          value={stats.users}
-          color="#6366f1"
-          onClick={() => router.push('/manage-dealers')}
+      {/* Main Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <MainStatCard
+          label="Total Dealers"
+          value={stats.totalPartners}
+          icon={<FiUsers />}
+          color="bg-indigo-600"
+          description="Active & Pending Partners"
         />
-        <StatCard
-          icon={<Icons.Users />}
-          label="Pending"
-          value={stats.pending}
-          color="#f59e0b"
-          highlight={stats.pending > 0}
-          onClick={() => router.push('/manage-dealers')}
+        <MainStatCard
+          label="Pending Approval of Dealer"
+          value={stats.pendingApprovals}
+          icon={<FiAlertCircle />}
+          color="bg-amber-500"
+          highlight={stats.pendingApprovals > 0}
+          onClick={() => router.push('/pages/manage-dealers')}
+          description="Awaiting Approval"
         />
-        <StatCard
-          icon={<Icons.Box />}
-          label="Products"
-          value={stats.products}
-          color="#3b82f6"
-          onClick={() => router.push('/product-management')}
+        <MainStatCard
+          label="Active Prdoucts"
+          value={stats.totalProducts}
+          icon={<FiPackage />}
+          color="bg-blue-500"
+          onClick={() => router.push('/pages/product-management')}
+          description="Total Live Products"
         />
-        <StatCard
-          icon={<Icons.Box />}
-          label="Low Stock"
-          value={stats.lowStock}
-          color="#ef4444"
-          highlight={stats.lowStock > 0}
-          onClick={() => router.push('/pricing-management')}
+        <MainStatCard
+          label="Total Orders"
+          value={stats.totalOrders}
+          icon={<FiShoppingCart />}
+          color="bg-emerald-500"
+          onClick={() => router.push('/pages/manage-orders')}
+          description="Combined Sales Volume"
         />
-        <StatCard
-          icon={<Icons.Cart />}
-          label="Orders"
-          value={stats.orders}
-          color="#8b5cf6"
-          onClick={() => router.push('/dealer-orders')}
-        />
-        <StatCard
-          icon={<Icons.Trend />}
-          label="Revenue"
-          value={`₹${(stats.revenue / 1000).toFixed(1)}k`}
-          color="#10b981"
-        />
-      </section>
+      </div>
 
-      {/* Analytics Card */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm">
-        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-          <h3 className="text-xl font-bold text-gray-900">Revenue Insights</h3>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            {['month', 'week'].map(mode => (
-              <button
-                key={mode}
-                onClick={() => setGroupBy(mode)}
-                className={`px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  groupBy === mode ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Role Breakdown Column */}
+        <div className="space-y-6">
+          <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Partner Breakdown</h3>
+          <RoleCard label="Dealers" count={stats.dealerCount} role="dealer" color="text-indigo-600" />
+          <RoleCard label="Sub-Dealers" count={stats.subdealerCount} role="subdealer" color="text-purple-600" />
+          <RoleCard label="Retailers" count={stats.retailerCount} role="retailer" color="text-pink-600" />
+
+          <div className="p-6 bg-rose-50 border border-rose-100 rounded-[2rem] flex items-center justify-between mt-10">
+            <div>
+              <p className="text-rose-600 font-black text-lg">{stats.lowStockCount}</p>
+              <p className="text-rose-400 text-xs font-bold uppercase tracking-wider">Inventory Alerts</p>
+            </div>
+            <button
+              onClick={() => router.push('/product-management')}
+              className="px-4 py-2 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-rose-200"
+            >
+              Restock
+            </button>
           </div>
         </div>
-        <div className={`h-${isMobile ? '64' : '96'}`}>
-          <Line data={revenueData} options={chartOptions} />
+
+        {/* Chart Area */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Revenue Trajectory</h3>
+            <div className="flex bg-slate-50 p-1.5 rounded-2xl">
+              {['month', 'week'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setGroupBy(t)}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${groupBy === t ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-[400px]">
+            <Line data={mockRevenueData} options={chartOptions} />
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, color, highlight, onClick }: StatCardProps) {
+// --- Sub-Components ---
+
+function MainStatCard({ label, value, icon, color, description, highlight, onClick }: any) {
   return (
     <div
       onClick={onClick}
-      className="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-all"
-      style={{ borderTop: `4px solid ${color}` }}
+      className="group bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-pointer relative overflow-hidden"
     >
-      <div className="flex justify-between items-start mb-2">
-        <div style={{ color, opacity: 0.8 }}>{icon}</div>
-        {highlight && <div className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs font-bold">Action</div>}
+      <div className={`${color} w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl mb-6 shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
+        {icon}
       </div>
-      <div className="text-xs font-bold text-gray-400 uppercase">{label}</div>
-      <div className="text-xl font-black text-gray-900 mt-1">{value}</div>
+      <p className="text-4xl font-black text-slate-900 mb-1">{value}</p>
+      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{label}</p>
+      <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 italic">
+        {description}
+      </p>
+      {highlight && (
+        <div className="absolute top-6 right-6 flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+        </div>
+      )}
     </div>
   );
 }
 
+function RoleCard({ label, count, color }: any) {
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between hover:border-indigo-200 transition-colors">
+      <div className="flex items-center gap-4">
+        <div className={`w-2 h-10 rounded-full ${color.replace('text', 'bg')}`} />
+        <div>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">{label}</p>
+          <p className={`text-xl font-black ${color}`}>{count}</p>
+        </div>
+      </div>
+      <FiChevronRight className="text-slate-300" />
+    </div>
+  );
+}
+
+function FiChevronRight({ className }: any) {
+  return <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+}
+
+// --- Chart Config ---
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: { legend: { display: false } },
   scales: {
-    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
-    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    y: {
+      grid: { display: true, color: '#f1f5f9' },
+      ticks: { font: { weight: 'bold' as any, size: 11 }, color: '#94a3b8' }
+    },
+    x: { grid: { display: false }, ticks: { font: { weight: 'bold' as any, size: 11 }, color: '#94a3b8' } }
   }
+};
+
+const mockRevenueData = {
+  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+  datasets: [{
+    data: [45000, 52000, 48000, 70000, 85000, 102000],
+    borderColor: '#4f46e5',
+    backgroundColor: (context: any) => {
+      const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, 400);
+      gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
+      gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+      return gradient;
+    },
+    fill: true,
+    tension: 0.4,
+    borderWidth: 4,
+    pointRadius: 0,
+  }]
 };

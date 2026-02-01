@@ -96,7 +96,7 @@ export default function SubProductsPage() {
             toast.success("Added to procurement cart");
             
             setShowModal(false);
-            if (gotoCart) router.push('/pages/suborders');
+            if (gotoCart) router.push('/pages/orders');
         } catch (err) {
             toast.error("Error adding to cart");
         } finally {
@@ -196,7 +196,7 @@ export default function SubProductsPage() {
                                     {isOutOfStock ? (
                                         <button disabled className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest cursor-not-allowed">Sold Out</button>
                                     ) : isInCart ? (
-                                        <button onClick={() => router.push('/pages/suborders')} className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg">
+                                        <button onClick={() => router.push('/pages/orders')} className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg">
                                             <MdArrowForward size={14} /> In Cart
                                         </button>
                                     ) : (

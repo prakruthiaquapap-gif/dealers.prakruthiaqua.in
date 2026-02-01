@@ -30,39 +30,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!error) setCartCount(count || 0);
   };
 
-  useEffect(() => {
-    const protectRoute = async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+useEffect(() => {
+  const protectRoute = async () => {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      if (authError || !user) {
-        router.push('/login');
-        return;
+    if (authError || !user) {
+      router.push('/login');
+      return;
+    }
+
+    const { data: dealer, error: dbError } = await supabase
+      .from('dealers')
+      .select('role, first_name, last_name, approval_status')
+      .eq('user_id', user.id)
+      .single();
+
+    if (dbError || !dealer || dealer.approval_status !== 'approved') {
+      if (dealer?.approval_status !== 'approved') toast.error("Account pending approval.");
+      await supabase.auth.signOut();
+      router.push('/login');
+      return;
+    }
+
+    setRole(dealer.role);
+    setUserName(`${dealer.first_name} ${dealer.last_name}`);
+    setLoading(false);
+
+    // --- NEW REDIRECT LOGIC ---
+    if (dealer.role === 'admin') {
+      // If admin is on the default dashboard or root, push to supplier dashboard
+      if (pathname === '/pages/dashboard' || pathname === '/') {
+        router.push('/pages/main-supplier-dashboard');
       }
+    } else {
+      fetchCartCount(); // Only non-admins need cart data
+    }
+  };
 
-      const { data: dealer, error: dbError } = await supabase
-        .from('dealers')
-        .select('role, first_name, last_name, approval_status')
-        .eq('user_id', user.id)
-        .single();
+  protectRoute();
 
-      if (dbError || !dealer || dealer.approval_status !== 'approved') {
-        if (dealer?.approval_status !== 'approved') toast.error("Account pending approval.");
-        await supabase.auth.signOut();
-        router.push('/login');
-        return;
-      }
-
-      setRole(dealer.role);
-      setUserName(`${dealer.first_name} ${dealer.last_name}`);
-      setLoading(false);
-      fetchCartCount();
-    };
-
-    protectRoute();
-
-    window.addEventListener('cartUpdated', fetchCartCount);
-    return () => window.removeEventListener('cartUpdated', fetchCartCount);
-  }, [router, supabase]);
+  window.addEventListener('cartUpdated', fetchCartCount);
+  return () => window.removeEventListener('cartUpdated', fetchCartCount);
+}, [router, supabase, pathname]); // Added pathname here
 
   if (loading) {
     return (
@@ -96,8 +105,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return (
               <Link key={idx} href={item.path}
                 className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${isActive
-                    ? 'bg-[#2c4305]/5 text-[#2c4305] shadow-sm'
-                    : 'text-gray-400 hover:bg-gray-50 hover:text-[#2c4305]'
+                  ? 'bg-[#2c4305]/5 text-[#2c4305] shadow-sm'
+                  : 'text-gray-400 hover:bg-gray-50 hover:text-[#2c4305]'
                   }`}>
                 <span className={`text-xl ${isActive ? 'text-[#2c4305]' : ''}`}>{item.icon}</span>
                 <span className={`font-black text-[11px] uppercase tracking-wider ${isActive ? 'text-[#2c4305]' : ''}`}>
@@ -127,16 +136,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-4">
-            {/* CART BUTTON */}
-            <Link href="/pages/checkout" className="relative p-3 bg-gray-50 hover:bg-[#2c4305]/10 text-gray-500 hover:text-[#2c4305] rounded-2xl transition-all">
-              <MdShoppingBag size={24} />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#2c4305] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-
+            {/* CART BUTTON - Only show if role is NOT 'admin' */}
+            {role !== 'admin' && (
+              <Link
+                href="/pages/cart"
+                className="relative p-3 bg-gray-50 hover:bg-[#2c4305]/10 text-gray-500 hover:text-[#2c4305] rounded-2xl transition-all"
+              >
+                <MdShoppingBag size={24} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#2c4305] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             <div className="flex items-center gap-4 border-l pl-6 ml-2">
               <div className="text-right">
@@ -153,7 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* REMOVED EXCESS SPACE HERE: Changed p-10 to p-6 and removed min-h calculation */}
-        <main className="p-1"> 
+        <main className="p-1">
           {children}
         </main>
       </div>
