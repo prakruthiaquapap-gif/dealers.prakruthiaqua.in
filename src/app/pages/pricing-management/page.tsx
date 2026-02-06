@@ -62,7 +62,7 @@ export default function PricingManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [currentPrices, setCurrentPrices] = useState<{
@@ -236,9 +236,24 @@ export default function PricingManagement() {
                     <button
                       onClick={() => {
                         setEditingVariant(v);
-                        setCurrentPrices({ ...v });
+                        setCurrentPrices({
+                          stock: String(v.stock),
+
+                          supplier_price: String(v.supplier_price),
+                          dealer_price: String(v.dealer_price),
+                          subdealer_price: String(v.subdealer_price),
+                          retail_price: String(v.retail_price),
+                          customer_price: String(v.customer_price),
+
+                          supplier_discount: String(v.supplier_discount),
+                          dealer_discount: String(v.dealer_discount),
+                          subdealer_discount: String(v.subdealer_discount),
+                          retail_discount: String(v.retail_discount),
+                          customer_discount: String(v.customer_discount),
+                        });
                         setShowEditModal(true);
                       }}
+
                       className="flex-1 py-3 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-gray-200"
                       style={{ backgroundColor: BRAND_COLOR }}
                     >
@@ -324,12 +339,12 @@ export default function PricingManagement() {
           </div>
         )}
 
-         {/* Pagination Section */}
+        {/* Pagination Section */}
         <div className="flex flex-col md:flex-row justify-between items-center mt-10 px-4 gap-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 md:order-1">
             Showing {currentItems.length} of {filteredVariants.length} Products
           </p>
-          
+
           <div className="flex items-center gap-2 order-1 md:order-2">
             {/* Previous Button */}
             <button
@@ -358,11 +373,10 @@ export default function PricingManagement() {
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
-                      currentPage === page
-                        ? 'text-white shadow-lg shadow-gray-200'
-                        : 'bg-white border border-gray-100 text-gray-400 hover:border-gray-300'
-                    }`}
+                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${currentPage === page
+                      ? 'text-white shadow-lg shadow-gray-200'
+                      : 'bg-white border border-gray-100 text-gray-400 hover:border-gray-300'
+                      }`}
                     style={{ backgroundColor: currentPage === page ? BRAND_COLOR : '' }}
                   >
                     {page}
