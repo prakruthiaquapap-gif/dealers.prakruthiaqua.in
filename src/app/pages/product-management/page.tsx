@@ -4,27 +4,39 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase'; // Fixed import path for client
+import { createClient } from '@/utils/supabase';
 import {
   FiPackage, FiTrash2, FiSearch, FiChevronDown, FiFilter,
   FiCheck, FiEdit3, FiEye, FiEyeOff, FiX, FiChevronRight,
-  FiFileText, FiDollarSign, FiPlusCircle, FiUploadCloud, FiXCircle
+  FiFileText, FiPlusCircle, FiUploadCloud, FiXCircle
 } from 'react-icons/fi';
+import { MdCurrencyRupee } from 'react-icons/md';
+
+interface Category {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  level: 'main' | 'sub' | 'inner';
+}
+
 interface Variant {
   id?: number;
-  quantity_value: number; // ✅ FIX
+
+  quantity_value: string;
   quantity_unit: string;
-  stock: number;
-  supplier_price: number;
-  dealer_price: number;
-  subdealer_price: number;
-  retail_price: number;
-  customer_price: number;
-  supplier_discount: number;
-  dealer_discount: number;
-  subdealer_discount: number;
-  retail_discount: number;
-  customer_discount: number;
+  stock: string;
+
+  supplier_price: string;
+  dealer_price: string;
+  subdealer_price: string;
+  retail_price: string;
+  customer_price: string;
+
+  supplier_discount: string;
+  dealer_discount: string;
+  subdealer_discount: string;
+  retail_discount: string;
+  customer_discount: string;
 }
 
 
@@ -32,8 +44,9 @@ interface Product {
   id: number;
   product_name: string;
   description: string;
-  category: string;
-  subcategory: string;
+  category: string;      // ID
+  subcategory: string;   // ID
+  innercategory: string; // ID - Add this for inner category
   stock: number;
   image_url: string;
   image_urls: string[];
@@ -51,6 +64,7 @@ interface FormData {
   description: string;
   category: string;
   subcategory: string;
+  innercategory: string;  // Add this
   image_urls: string[];
   variants: Variant[];
 }
@@ -58,22 +72,6 @@ interface FormData {
 interface Errors {
   [key: string]: string;
 }
-
-// Categories with subcategories and units
-const CATEGORY_MAP: { [key: string]: { subcategories: string[]; unit: string } } = {
-  Medicine: {
-    subcategories: ['Fish Medicine', 'Plant Medicine', 'Plant Lushers'],
-    unit: 'ml',
-  },
-  'Bird Food': {
-    subcategories: ['Bird Foods'],
-    unit: 'grams',
-  },
-  'Fish Food': {
-    subcategories: ['Freeze-Live Dried Foods', 'Pallets Foods'],
-    unit: 'grams',
-  },
-};
 
 const ACTIVE_FILTERS = [
   { label: 'All Products', value: 'all' },
@@ -83,31 +81,78 @@ const ACTIVE_FILTERS = [
 
 export default function ProductManagement() {
   const brandColor = '#4f46e5';
-  const supabase = createClient(); // Create the supabase client instance
+  const supabase = createClient();
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [activeFilter, setActiveFilter] = useState('all');
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [productImageIndices, setProductImageIndices] = useState<{ [key: number]: number }>({});
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   const [screenWidth, setScreenWidth] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editProductId, setEditProductId] = useState<number | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    setImageUploading(true);
+    setUploadingCount(files.length);
+
+    // show local previews immediately
+    const newPreviews = Array.from(files).map((f) => URL.createObjectURL(f));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+
+    const uploadedUrls = [...form.image_urls];
+
+    for (const file of Array.from(files)) {
+      const fileName = `product_${Date.now()}_${file.name}`;
+
+      const { error } = await supabase.storage.from('products').upload(fileName, file);
+
+      if (error) {
+        alert('Image upload failed');
+        setImageUploading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName);
+      uploadedUrls.push(urlData.publicUrl);
+
+      setUploadingCount((c) => c - 1);
+    }
+
+    setForm({ ...form, image_urls: uploadedUrls });
+    setImagePreviews([]); // <-- clear previews
+    setImageUploading(false);
+
+  };
+
 
   const [form, setForm] = useState<FormData>({
     name: '',
     description: '',
     category: '',
     subcategory: '',
+    innercategory: '',
     image_urls: [],
     variants: [
       {
@@ -130,6 +175,34 @@ export default function ProductManagement() {
 
   const [errors, setErrors] = useState<Errors>({});
 
+  // Helper: Convert ID → Name
+  const getCategoryName = (id: string) => {
+    const cat = categories.find((c) => c.id === id);
+    return cat ? cat.name : id;
+  };
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Category fetch error:', error);
+      return;
+    }
+
+    setCategories(data || []);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const mainCategories = categories.filter((c) => c.level === 'main');
+  const subCategories = categories.filter((c) => c.level === 'sub' && c.parent_id === form.category);
+  const innerCategories = categories.filter((c) => c.level === 'inner' && c.parent_id === form.subcategory);
+
   useEffect(() => {
     setScreenWidth(window.innerWidth);
     const resize = () => setScreenWidth(window.innerWidth);
@@ -139,21 +212,7 @@ export default function ProductManagement() {
 
   const isMobile = screenWidth < 768;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    if (name === 'category') {
-      setForm({
-        ...form,
-        category: value,
-        subcategory: '',
-      });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
-
-  
-
+  // Images slideshow for products
   useEffect(() => {
     if (!selectedProduct) return;
     const images = selectedProduct.image_urls?.length ? selectedProduct.image_urls : [selectedProduct.image_url];
@@ -163,13 +222,14 @@ export default function ProductManagement() {
     return () => clearInterval(interval);
   }, [selectedProduct]);
 
+  // Images slideshow for grid
   useEffect(() => {
     const interval = setInterval(() => {
       setProductImageIndices((prev) => {
         const updated: { [key: number]: number } = {};
         products.forEach((p) => {
           const images = p.image_urls?.length ? p.image_urls : [p.image_url];
-          updated[p.id] = prev[p.id] !== undefined ? (prev[p.id] + 1) % images.length : 0; // Fixed syntax error
+          updated[p.id] = prev[p.id] !== undefined ? (prev[p.id] + 1) % images.length : 0;
         });
         return updated;
       });
@@ -179,7 +239,9 @@ export default function ProductManagement() {
 
   const fetchProducts = async () => {
     setLoading(true);
+
     let query = supabase.from('products').select('*, variants:product_variants(*)').order('id', { ascending: true });
+
     if (selectedCategory !== 'All Categories') {
       query = query.eq('category', selectedCategory);
     }
@@ -187,6 +249,11 @@ export default function ProductManagement() {
     else if (activeFilter === 'inactive') query = query.eq('active', false);
 
     let { data, error } = await query;
+    if (error) {
+      console.error(error);
+      setLoading(false);
+      return;
+    }
 
     let productsData: Product[] = data ?? [];
 
@@ -200,7 +267,6 @@ export default function ProductManagement() {
     }
 
     setProducts(productsData);
-
     setSelectedProducts([]);
     setLoading(false);
   };
@@ -236,7 +302,7 @@ export default function ProductManagement() {
       });
       ['supplier_discount', 'dealer_discount', 'subdealer_discount', 'retail_discount', 'customer_discount'].forEach((field) => {
         if (Number(v[field as keyof Variant]) < 0)
-          if (Number(v[field as keyof Variant]) < 0) newErrors[`${field}_${i}`] = 'Error';
+          newErrors[`${field}_${i}`] = 'Error';
       });
     });
 
@@ -256,6 +322,7 @@ export default function ProductManagement() {
         description: form.description.trim(),
         category: form.category,
         subcategory: form.subcategory,
+        innercategory: form.innercategory,  // Add this
         stock: form.variants.reduce((sum, v) => sum + Number(v.stock), 0),
         image_url: form.image_urls[0],
         image_urls: form.image_urls,
@@ -361,6 +428,7 @@ export default function ProductManagement() {
       description: '',
       category: '',
       subcategory: '',
+      innercategory: '',
       image_urls: [],
       variants: [
         {
@@ -395,7 +463,6 @@ export default function ProductManagement() {
     setForm({ ...form, variants: newVariants });
   };
 
-
   const addVariant = () => {
     setForm({
       ...form,
@@ -424,32 +491,9 @@ export default function ProductManagement() {
     setForm({ ...form, variants: form.variants.filter((_, i) => i !== index) });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
 
-    const uploadedUrls = [...form.image_urls];
-
-    for (const file of Array.from(files)) {
-      const fileName = `product_${Date.now()}_${file.name}`;
-
-      const { error } = await supabase.storage.from('products').upload(fileName, file);
-
-      if (error) {
-        alert('Image upload failed');
-        return;
-      }
-
-      const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName);
-
-      uploadedUrls.push(urlData.publicUrl);
-    }
-
-    setForm({ ...form, image_urls: uploadedUrls });
-  };
 
   const deleteProduct = async (productId: number) => {
-    console.log('Deleting product with id:', productId);
     try {
       let { error: err1 } = await supabase.from('subdealer_cart').delete().eq('product_id', productId);
       if (err1) throw new Error(`Error deleting from subdealer_cart: ${err1.message}`);
@@ -460,20 +504,21 @@ export default function ProductManagement() {
       let { error: err3 } = await supabase.from('products').delete().eq('id', productId);
       if (err3) throw new Error(`Error deleting from products: ${err3.message}`);
 
-      console.log('Product deleted successfully.');
       await fetchProducts();
     } catch (error: any) {
       alert(`Failed to delete product: ${error.message}`);
-      console.error('Delete failed:', error);
     }
   };
 
   const removeImage = (indexToRemove: number) => {
-    setForm({
-      ...form,
-      image_urls: form.image_urls.filter((_, index) => index !== indexToRemove),
-    });
+    setForm((prev) => ({
+      ...prev,
+      image_urls: prev.image_urls.filter((_, i) => i !== indexToRemove),
+    }));
+
+    setImagePreviews((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
+
 
   const deleteMultipleProducts = async (productIds: number[]) => {
     const confirmDelete = window.confirm(`Are you sure you want to delete ${productIds.length} products? This action cannot be undone.`);
@@ -513,6 +558,7 @@ export default function ProductManagement() {
       description: product.description,
       category: product.category,
       subcategory: product.subcategory,
+      innercategory: product.innercategory || '',
       image_urls: product.image_urls || [product.image_url],
       variants: product.variants.map((v) => ({
         id: v.id,
@@ -531,16 +577,27 @@ export default function ProductManagement() {
         customer_discount: v.customer_discount || 0,
       })),
     });
+
     setShowAddModal(true);
   };
 
   const toggleProductSelection = (productId: number) => {
-  setSelectedProducts(prev =>
-    prev.includes(productId)
-      ? prev.filter(id => id !== productId)
-      : [...prev, productId]
-  );
+    setSelectedProducts(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+
+const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const { name, value } = e.target;
+  setForm((prev) => ({
+    ...prev,
+    [name]: value,
+  }));
 };
+
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto font-inter bg-white min-h-screen">
@@ -560,14 +617,14 @@ export default function ProductManagement() {
               Product Inventory
             </h1>
             {isSelectionMode && (
-              <span className="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white animate-pulse">
+              <span className="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#2c4305] text-white animate-pulse">
                 Live Edit
               </span>
             )}
           </div>
 
           {isSelectionMode ? (
-            <p className="text-indigo-600 font-bold text-sm flex items-center gap-2">
+            <p className="text-[#2c4305]  font-bold text-sm flex items-center gap-2">
               <FiPackage className="animate-bounce" />
               {selectedProducts.length} items currently staged for action
             </p>
@@ -627,7 +684,7 @@ export default function ProductManagement() {
               {/* Bulk Action: Select/Deselect */}
               <button
                 onClick={toggleSelectAll}
-                className="px-5 py-3 bg-white border border-indigo-200 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-colors"
+                className="px-5 py-3 bg-white border border-indigo-200  rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-colors"
               >
                 {selectedProducts.length === products.length ? "Clear All" : "Select All"}
               </button>
@@ -663,7 +720,7 @@ export default function ProductManagement() {
       >
         {/* Search Input Container */}
         <div className="flex-1 relative group">
-          <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-indigo-600 text-gray-400">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-[#2c4305] text-gray-400">
             <FiSearch className="text-lg" />
           </div>
           <input
@@ -698,9 +755,12 @@ export default function ProductManagement() {
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
               <option value="All Categories">All Categories</option>
-              {Object.keys(CATEGORY_MAP).map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {mainCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
+
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
               <FiChevronDown />
@@ -756,15 +816,15 @@ export default function ProductManagement() {
 
             return (
               <article
-    key={p.id}
-    className={`
+                key={p.id}
+                className={`
       group relative bg-white rounded-[2.5rem] overflow-hidden transition-all duration-500
       ${isSelected
-        ? 'ring-4 ring-indigo-500 ring-offset-4 scale-[0.98] shadow-xl'
-        : 'hover:shadow-2xl hover:shadow-gray-200/50 border border-gray-100 hover:-translate-y-2'}
+                    ? 'ring-4 ring-indigo-500 ring-offset-4 scale-[0.98] shadow-xl'
+                    : 'hover:shadow-2xl hover:shadow-gray-200/50 border border-gray-100 hover:-translate-y-2'}
     `}
-    onClick={() => isSelectionMode ? toggleProductSelection(p.id) : handleViewDetails(p)}
-  >
+                onClick={() => isSelectionMode ? toggleProductSelection(p.id) : handleViewDetails(p)}
+              >
 
                 {/* Top Image Section */}
                 <div className="relative h-64 overflow-hidden bg-gray-50">
@@ -786,7 +846,7 @@ export default function ProductManagement() {
                     {isSelectionMode && (
                       <div className={`
                   w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all
-                  ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-lg' : 'bg-white/50 border-white'}
+                  ${isSelected ? 'bg-[#2c4305] border-indigo-600 shadow-lg' : 'bg-white/50 border-white'}
                 `}>
                         {isSelected && <FiCheck className="text-white" />}
                       </div>
@@ -803,12 +863,16 @@ export default function ProductManagement() {
                 {/* Content Section */}
                 <div className="p-6">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{p.category}</span>
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                      {getCategoryName(p.category)}
+                    </span>
                     <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.subcategory}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      {getCategoryName(p.subcategory)}
+                    </span>
                   </div>
 
-                  <h3 className="text-lg font-black text-gray-900 leading-tight mb-4 group-hover:text-indigo-600 transition-colors">
+                  <h3 className="text-lg font-black text-gray-900 leading-tight mb-4 group-hover:text-[#2c4305] transition-colors">
                     {p.product_name}
                   </h3>
 
@@ -823,7 +887,7 @@ export default function ProductManagement() {
                   {!isSelectionMode && (
                     <div className="space-y-2">
                       <button
-                        className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-gray-200"
+                        className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-[#2c4305] transition-all shadow-lg shadow-gray-200"
                         onClick={(e) => { e.stopPropagation(); handleViewDetails(p); }}
                       >
                         Quick View
@@ -831,7 +895,7 @@ export default function ProductManagement() {
 
                       <div className="grid grid-cols-3 gap-2">
                         <button
-                          className="p-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex justify-center"
+                          className="p-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-indigo-50 hover:text-[#2c4305] transition-colors flex justify-center"
                           onClick={(e) => { e.stopPropagation(); handleEditProduct(p); }}
                           title="Edit Product"
                         >
@@ -902,7 +966,7 @@ export default function ProductManagement() {
                         {selectedProduct.image_urls.map((_, idx) => (
                           <div
                             key={idx}
-                            className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}
+                            className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'w-8 bg-[#2c4305]' : 'w-2 bg-gray-200'}`}
                           />
                         ))}
                       </div>
@@ -912,12 +976,12 @@ export default function ProductManagement() {
                   {/* Core Info */}
                   <div className="md:w-2/3 flex flex-col justify-center">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                        {selectedProduct.category}
+                      <span className="px-3 py-1 bg-indigo-50 text-[#2c4305] text-[10px] font-black uppercase tracking-widest rounded-full">
+                        {getCategoryName(selectedProduct.category)}
                       </span>
                       <FiChevronRight className="text-gray-300" />
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        {selectedProduct.subcategory}
+                        {getCategoryName(selectedProduct.subcategory)}
                       </span>
                     </div>
 
@@ -968,7 +1032,7 @@ export default function ProductManagement() {
                   {/* Pricing Matrix */}
                   <div className="lg:col-span-2">
                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <FiDollarSign className="text-indigo-500" /> Multi-Tier Pricing Matrix
+                      < MdCurrencyRupee className="text-indigo-500" /> Multi-Tier Pricing Matrix
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {(['supplier', 'dealer', 'subdealer', 'retail', 'customer'] as const).map((tier) => {
@@ -978,7 +1042,7 @@ export default function ProductManagement() {
 
                         return (
                           <div key={tier} className="group p-5 bg-gray-50/50 rounded-3xl border border-gray-100 hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-3 group-hover:text-indigo-600 transition-colors">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-3 group-hover:text-[#2c4305] transition-colors">
                               {tier}
                             </p>
                             <div className="flex items-baseline gap-1 mb-1">
@@ -1012,7 +1076,7 @@ export default function ProductManagement() {
                   handleEditProduct(selectedProduct);
                   setShowDetailsModal(false);
                 }}
-                className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
+                className="px-8 py-4 bg-[#2c4305] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-[#2c4305] active:scale-95 transition-all"
               >
                 Modify Product
               </button>
@@ -1032,10 +1096,10 @@ export default function ProductManagement() {
               <div className="px-10 py-8 border-b border-gray-100 flex justify-between items-center bg-white">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 leading-none mb-1">
-                    {isEditing ? 'Modify Product' : 'Inventory Onboarding'}
+                    {isEditing ? 'Modify Product' : 'Product Onboarding'}
                   </h2>
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    {isEditing ? 'Updating existing catalog entry' : 'Define new product specifications'}
+                    {isEditing ? 'Updating existing catalog entry' : 'New product specifications'}
                   </p>
                 </div>
                 <button
@@ -1053,25 +1117,25 @@ export default function ProductManagement() {
                   {/* 1. BASIC INFORMATION */}
                   <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">01</div>
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#2c4305] flex items-center justify-center font-bold text-sm">01</div>
                       <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Essential Details</h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Product Identity</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Product Name</label>
                         <input
                           name="name"
                           value={form.name}
                           onChange={handleChange}
                           className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-black focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
-                          placeholder="e.g. Industrial Submersible Pump"
+                          placeholder="e.g. Fish Food"
                           required
                         />
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Narrative Description</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Description</label>
                         <textarea
                           name="description"
                           value={form.description}
@@ -1081,58 +1145,113 @@ export default function ProductManagement() {
                           required
                         />
                       </div>
+                      <div className="md:col-span-2 w-full flex items-end justify-between gap-6">
 
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Primary Category</label>
-                        <div className="relative">
-                          <select
-                            name="category"
-                            value={form.category}
-                            onChange={handleChange}
-                            className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-gray-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                            required
-                          >
-                            <option value="">Select Category</option>
-                            {Object.keys(CATEGORY_MAP).map((cat) => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                          <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        {/* PRIMARY CATEGORY */}
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                            Primary Category
+                          </label>
+
+                          <div className="relative">
+                            <select
+                              name="category"
+                              value={form.category}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  category: e.target.value,
+                                  subcategory: '',
+                                })
+                              }
+                              className="w-full px-6 py-4 rounded-2xl bg-gray-50 text-gray-900 text-sm font-bold border border-gray-200 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                            >
+                              <option value="">Select Category</option>
+                              {mainCategories.map(cat => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
                         </div>
+
+                        {/* SUB CATEGORY */}
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                            Sub-Classification
+                          </label>
+
+                          <div className="relative">
+                            <select
+                              name="subcategory"
+                              value={form.subcategory}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  subcategory: e.target.value,
+                                })
+                              }
+                              disabled={!form.category}
+                              className="w-full px-6 py-4 rounded-2xl bg-gray-50 text-gray-900 text-sm font-bold border border-gray-200 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                              <option value="">Select Sub Category</option>
+                              {subCategories.map(sub => (
+                                <option key={sub.id} value={sub.id}>
+                                  {sub.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+
+                        {/* INNER CATEGORY */}
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                            Inner Category
+                          </label>
+                          <div className="relative">
+                            <select
+                              name="innercategory"
+                              value={form.innercategory}
+                              onChange={(e) => setForm({ ...form, innercategory: e.target.value })}
+                              disabled={!form.subcategory}
+                              className="w-full px-6 py-4 rounded-2xl bg-gray-50 text-gray-900 text-sm font-bold border border-gray-200 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                              <option value="">Select Inner Category</option>
+                              {innerCategories.map(inner => (
+                                <option key={inner.id} value={inner.id}>
+                                  {inner.name}
+                                </option>
+                              ))}
+                            </select>
+                            <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Sub-Classification</label>
-                        <div className="relative">
-                          <select
-                            name="subcategory"
-                            value={form.subcategory}
-                            onChange={handleChange}
-                            className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-none text-sm font-bold text-gray-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                            required
-                          >
-                            <option value="">Select Sub</option>
-                            {form.category && CATEGORY_MAP[form.category].subcategories.map((sub) => (
-                              <option key={sub} value={sub}>{sub}</option>
-                            ))}
-                          </select>
-                          <FiChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        </div>
-                      </div>
+
                     </div>
+
+
                   </section>
 
                   {/* 2. VARIANTS & PRICING */}
                   <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
                     <div className="flex justify-between items-center mb-8">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">02</div>
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#2c4305] flex items-center justify-center font-bold text-sm">02</div>
                         <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Variants & Multi-Tier Pricing</h3>
                       </div>
                       <button
                         type="button"
                         onClick={addVariant}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2c4305] text-white font-black text-[10px] uppercase tracking-widest hover:bg-[#2c4305] transition-all shadow-lg shadow-indigo-100"
                       >
                         <FiPlusCircle className="text-sm" /> Add New Variant
                       </button>
@@ -1151,17 +1270,23 @@ export default function ProductManagement() {
                             </button>
                           )}
 
-                          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8 pb-8 border-b border-gray-100">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 pb-8 border-b border-gray-100">
                             <div>
-                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Quantity Value</label>
+                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">
+                                Quantity (e.g., 1 kg)
+                              </label>
+
                               <input
                                 type="number"
-                                value={v.quantity_value}
-                                onChange={(e) => handleVariantChange(idx, 'quantity_value', Number(e.target.value))}
+                                value={v.quantity_value ?? ""}
+                                onChange={(e) =>
+                                  handleVariantChange(idx, "quantity_value", e.target.value)
+                                }
                                 className="w-full px-4 py-3 rounded-xl bg-white border text-black border-gray-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                 placeholder="0"
                               />
                             </div>
+
                             <div>
                               <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Unit</label>
                               <select
@@ -1174,14 +1299,20 @@ export default function ProductManagement() {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">Current Stock</label>
+                              <label className="block text-[9px] font-black text-gray-400 uppercase mb-2">
+                                Current Stock
+                              </label>
+
                               <input
                                 type="number"
-                                value={v.stock}
-                                onChange={(e) => handleVariantChange(idx, 'stock', Number(e.target.value))}
+                                value={v.stock ?? ""}
+                                onChange={(e) =>
+                                  handleVariantChange(idx, "stock", e.target.value)
+                                }
                                 className="w-full px-4 py-3 rounded-xl text-black bg-white border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                               />
                             </div>
+
                           </div>
 
                           {/* Pricing Tiers Grid */}
@@ -1199,21 +1330,35 @@ export default function ProductManagement() {
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">₹</span>
                                   <input
                                     type="number"
-                                    value={v[`${tier.f}_price` as keyof Variant]}
-                                    onChange={(e) => handleVariantChange(idx, `${tier.f}_price` as keyof Variant, Number(e.target.value))}
+                                    value={(v[`${tier.f}_price` as keyof Variant] as string) ?? ""}
+                                    onChange={(e) =>
+                                      handleVariantChange(
+                                        idx,
+                                        `${tier.f}_price` as keyof Variant,
+                                        e.target.value
+                                      )
+                                    }
                                     className="w-full text-black pl-7 pr-3 py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-black outline-none focus:border-indigo-500"
                                     placeholder="0"
                                   />
+
                                 </div>
                                 <div className="relative">
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-[10px]">%</span>
                                   <input
-                                    type="number"
-                                    value={v[`${tier.f}_discount` as keyof Variant]}
-                                    onChange={(e) => handleVariantChange(idx, `${tier.f}_discount` as keyof Variant, Number(e.target.value))}
-                                    className="w-full pl-3 text-black pr-7 py-2 rounded-lg bg-emerald-50/50 border border-emerald-100 text-[10px] font-bold text-emerald-700 outline-none"
-                                    placeholder="Disc"
-                                  />
+  type="number"
+  value={(v[`${tier.f}_discount` as keyof Variant] as string) ?? ""}
+  onChange={(e) =>
+    handleVariantChange(
+      idx,
+      `${tier.f}_discount` as keyof Variant,
+      e.target.value
+    )
+  }
+  className="w-full pl-3 text-black pr-7 py-2 rounded-lg bg-emerald-50/50 border border-emerald-100 text-[10px] font-bold text-emerald-700 outline-none"
+  placeholder="Disc"
+/>
+
                                 </div>
                               </div>
                             ))}
@@ -1226,16 +1371,34 @@ export default function ProductManagement() {
                   {/* 3. MEDIA ASSETS */}
                   <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100/50">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">03</div>
-                      <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Visual Identity</h3>
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#2c4305] flex items-center justify-center font-bold text-sm">03</div>
+                      <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Product Identity</h3>
                     </div>
 
-                    <label htmlFor="image-upload" className="group flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-200 rounded-[2rem] cursor-pointer hover:bg-indigo-50/30 hover:border-indigo-300 transition-all bg-gray-50/50">
+                    <label
+                      htmlFor="image-upload"
+                      className="group flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-200 rounded-[2rem] cursor-pointer hover:border-indigo-300 transition-all bg-gray-50/50 relative"
+                    >
+                      {/* Loading overlay */}
+                      {imageUploading && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-[2rem]">
+                          <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-indigo-500"></div>
+                          <span className="ml-3 text-sm font-black text-gray-700 uppercase tracking-widest">
+                            Uploading...
+                          </span>
+                        </div>
+                      )}
+
                       <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-500 text-2xl mb-4 group-hover:scale-110 transition-transform">
                         <FiUploadCloud />
                       </div>
-                      <span className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1">Click to Upload</span>
-                      <span className="text-xs font-bold text-gray-400">SVG, PNG, JPG (Max 6 images)</span>
+                      <span className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1">
+                        Click to Upload
+                      </span>
+                      <span className="text-xs font-bold text-gray-400">
+                        SVG, PNG, JPG (Max 6 images)
+                      </span>
+
                       <input
                         id="image-upload"
                         type="file"
@@ -1246,20 +1409,33 @@ export default function ProductManagement() {
                       />
                     </label>
 
+
                     <div className="flex gap-4 mt-8 flex-wrap">
-                      {form.image_urls.map((url, i) => (
-                        <div key={i} className="group relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                          <img src={url} className="w-full h-full object-cover" alt="Preview" />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(i)}
-                            className="absolute inset-0 bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xl"
-                          >
-                            <FiXCircle />
-                          </button>
-                        </div>
-                      ))}
+                      {[...imagePreviews, ...form.image_urls].map((url, i) => {
+                        const isUploading = i < imagePreviews.length && imageUploading;
+
+                        return (
+                          <div key={i} className="group relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-white shadow-md">
+                            <img src={url} className="w-full h-full object-cover" alt="Preview" />
+
+                            {isUploading && (
+                              <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-4 border-indigo-500"></div>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => removeImage(i)}
+                              className="absolute inset-0 bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xl"
+                            >
+                              <FiXCircle />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
+
                   </section>
                 </form>
               </div>
@@ -1276,7 +1452,7 @@ export default function ProductManagement() {
                 <button
                   type="submit"
                   onClick={(e) => { e.preventDefault(); saveProduct(); }}
-                  className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-indigo-600 transition-all active:scale-95"
+                  className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-[#2c4305] transition-all active:scale-95"
                 >
                   {isEditing ? 'Save Product' : 'Publish to Catalog'}
                 </button>

@@ -17,7 +17,7 @@ export default function DealerDashboard() {
   const [stats, setStats] = useState([
     { label: "Total Products", value: "0", icon: <MdLayers />, color: "border-[#2c4305]", iconBg: "bg-[#2c4305]/5 text-[#2c4305]" },
     { label: "Active Orders", value: "0", icon: <MdHistory />, color: "border-[#2c4305]", iconBg: "bg-[#2c4305]/5 text-[#2c4305]" },
-    { label: "Total Investment", value: "₹0", icon: <MdAccountBalanceWallet />, color: "border-[#2c4305]", iconBg: "bg-[#2c4305]/5 text-[#2c4305]" },
+    { label: "Total Amount Investment", value: "₹0", icon: <MdAccountBalanceWallet />, color: "border-[#2c4305]", iconBg: "bg-[#2c4305]/5 text-[#2c4305]" },
   ]);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function DealerDashboard() {
             .eq(idColumn, user.id)
         ]);
 
-        // 5. Calculate Total Investment (Sum of total_amount)
+        // 5. Calculate Total Amount Investment (Sum of total_amount)
         const totalSum = investmentRes.data?.reduce((sum, order) => {
           return sum + (Number(order.total_amount) || 0);
         }, 0) || 0;
@@ -100,7 +100,7 @@ export default function DealerDashboard() {
             iconBg: "bg-[#2c4305]/5 text-[#2c4305]" 
           },
           { 
-            label: "Total Investment", 
+            label: "Total Amount Investment", 
             value: `₹${totalSum.toLocaleString('en-IN')}`, 
             icon: <MdAccountBalanceWallet />, 
             color: "border-[#2c4305]", 

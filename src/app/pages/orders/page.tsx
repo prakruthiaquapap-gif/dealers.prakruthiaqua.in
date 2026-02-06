@@ -79,8 +79,8 @@ export default function OrdersPage() {
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center">
             <div className="text-center">
-                <div className="w-12 h-12 border-4 border-[#108542] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="font-black animate-pulse text-[#108542] tracking-widest uppercase text-xs">Loading {role} Orders...</p>
+                <div className="w-12 h-12 border-4 border-[#2c4305] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="font-black animate-pulse text-[#2c4305] tracking-widest uppercase text-xs">Loading {role} Orders...</p>
             </div>
         </div>
     );
@@ -104,7 +104,7 @@ export default function OrdersPage() {
               
                     <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
                         <p className="text-[10px] font-black text-gray-400 uppercase">Total Orders</p>
-                        <p className="text-2xl font-black text-[#108542]">{orders.length}</p>
+                        <p className="text-2xl font-black text-[#2c4305]">{orders.length}</p>
                     </div>
                 </div>
             </div>
@@ -115,7 +115,7 @@ export default function OrdersPage() {
                     <p className="font-bold text-gray-500">No {role} orders found yet.</p>
                     <button 
                         onClick={() => router.push('/pages/products')} 
-                        className="mt-4 text-[#108542] font-black uppercase text-xs underline"
+                        className="mt-4 text-[#2c4305] font-black uppercase text-xs underline"
                     >
                         Start Shopping
                     </button>
@@ -135,7 +135,7 @@ export default function OrdersPage() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Total Amount</p>
-                                        <p className="text-sm font-black text-[#108542]">₹{Number(order.total_amount).toLocaleString()}</p>
+                                        <p className="text-sm font-black text-[#2c4305]">₹{Number(order.total_amount).toLocaleString()}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Payment Status</p>
@@ -165,7 +165,7 @@ export default function OrdersPage() {
                                                     {item.quantity}x
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-800 group-hover:text-[#108542] transition-colors">
+                                                    <p className="text-sm font-bold text-slate-800 group-hover:text-[#2c4305] transition-colors">
                                                         {item.product_name || item.products?.product_name || 'Product'}
                                                     </p>
                                                     <p className="text-[10px] text-gray-400 uppercase font-bold">Price: ₹{item.price}</p>

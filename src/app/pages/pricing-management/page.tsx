@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase';
-import { 
-  FiSearch, FiEdit2, FiDownload, 
-  FiCheckCircle, FiPackage, FiChevronDown, FiChevronUp, FiFilter, FiActivity 
+import {
+  FiSearch, FiEdit2, FiDownload,
+  FiCheckCircle, FiPackage, FiChevronDown, FiChevronUp, FiFilter, FiActivity
 } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -62,9 +62,22 @@ export default function PricingManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [currentPage, setCurrentPage] = useState(1);
+  
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
-  const [currentPrices, setCurrentPrices] = useState<Partial<Variant>>({});
+  const [currentPrices, setCurrentPrices] = useState<{
+    stock?: string;
+    supplier_price?: string;
+    dealer_price?: string;
+    subdealer_price?: string;
+    retail_price?: string;
+    customer_price?: string;
+    supplier_discount?: string;
+    dealer_discount?: string;
+    subdealer_discount?: string;
+    retail_discount?: string;
+    customer_discount?: string;
+  }>({});
   const [isMobile, setIsMobile] = useState(false);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
@@ -110,7 +123,7 @@ export default function PricingManagement() {
   const savePricing = async () => {
     if (!editingVariant) return;
     try {
-      const updates: any = {}; 
+      const updates: any = {};
       PRICE_TIERS.forEach(t => {
         updates[t.key] = parseFloat(String(currentPrices[t.key] ?? '0')) || 0;
         updates[t.discKey] = parseFloat(String(currentPrices[t.discKey] ?? '0')) || 0;
@@ -122,14 +135,14 @@ export default function PricingManagement() {
         .from('product_variants')
         .update(updates)
         .eq('id', editingVariant.id);
-      
+
       if (error) throw error;
 
       setVariants(variants.map(v => v.id === editingVariant.id ? { ...v, ...updates } : v));
       setShowEditModal(false);
       toast.success('Inventory Updated Successfully');
-    } catch (err: any) { 
-      toast.error(err.message); 
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -197,10 +210,10 @@ export default function PricingManagement() {
                       <p className="text-sm font-bold text-gray-500">{v.quantity_value} {v.quantity_unit}</p>
                     </div>
                     <div className="text-right">
-                       <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Stock</p>
-                       <span className={`px-3 py-1 rounded-lg text-xs font-black ${v.stock < 10 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
-                         {v.stock} units
-                       </span>
+                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Stock</p>
+                      <span className={`px-3 py-1 rounded-lg text-xs font-black ${v.stock < 10 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                        {v.stock} units
+                      </span>
                     </div>
                   </div>
 
@@ -235,15 +248,15 @@ export default function PricingManagement() {
 
                   {expandedCard === v.id && (
                     <div className="mt-4 pt-4 border-t border-dashed grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-top-2">
-                       {PRICE_TIERS.map(t => (
-                         <div key={t.key} className="flex justify-between items-center py-1">
-                           <span className="text-xs font-bold text-gray-500">{t.label}</span>
-                           <div className="text-right">
-                              <span className="text-xs font-black text-gray-900 mr-2">₹{(v[t.key] as any)}</span>
-                              <span className="text-[10px] font-bold text-green-600">-{v[t.discKey] as any}%</span>
-                           </div>
-                         </div>
-                       ))}
+                      {PRICE_TIERS.map(t => (
+                        <div key={t.key} className="flex justify-between items-center py-1">
+                          <span className="text-xs font-bold text-gray-500">{t.label}</span>
+                          <div className="text-right">
+                            <span className="text-xs font-black text-gray-900 mr-2">₹{(v[t.key] as any)}</span>
+                            <span className="text-[10px] font-bold text-green-600">-{v[t.discKey] as any}%</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -255,7 +268,7 @@ export default function PricingManagement() {
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-50">
                       <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Info</th>
-                      <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Inventory Level</th>
+                      <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Stock Level</th>
                       {PRICE_TIERS.map(t => (
                         <th key={t.key} className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.label}</th>
                       ))}
@@ -274,9 +287,9 @@ export default function PricingManagement() {
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-3">
                             <div className="flex-1 h-1.5 w-20 bg-gray-100 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${v.stock < 10 ? 'bg-rose-500' : 'bg-emerald-500'}`} 
-                                style={{ width: `${Math.min(v.stock, 100)}%` }} 
+                              <div
+                                className={`h-full rounded-full ${v.stock < 10 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                                style={{ width: `${Math.min(v.stock, 100)}%` }}
                               />
                             </div>
                             <span className="text-sm font-black text-gray-700">{v.stock}</span>
@@ -291,7 +304,7 @@ export default function PricingManagement() {
                           </td>
                         ))}
                         <td className="px-8 py-6 text-right">
-                          <button 
+                          <button
                             className="p-3 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm"
                             onClick={() => {
                               setEditingVariant(v);
@@ -311,25 +324,60 @@ export default function PricingManagement() {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="flex justify-between items-center mt-10 px-4">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+         {/* Pagination Section */}
+        <div className="flex flex-col md:flex-row justify-between items-center mt-10 px-4 gap-6">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 md:order-1">
             Showing {currentItems.length} of {filteredVariants.length} Products
           </p>
-          <div className="flex gap-2">
-            <button 
-              disabled={currentPage === 1} 
-              onClick={() => setCurrentPage(p => p - 1)} 
-              className="px-6 py-2 rounded-xl border border-gray-100 bg-white text-xs font-black uppercase tracking-widest disabled:opacity-30"
+          
+          <div className="flex items-center gap-2 order-1 md:order-2">
+            {/* Previous Button */}
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors"
             >
-              Prev
+              <FiChevronUp className="-rotate-90" size={20} />
             </button>
-            <button 
-              disabled={currentPage >= totalPages} 
-              onClick={() => setCurrentPage(p => p + 1)} 
-              className="px-6 py-2 rounded-xl border border-gray-100 bg-white text-xs font-black uppercase tracking-widest disabled:opacity-30"
+
+            {/* Page Numbers */}
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Only show first, last, current, and pages near current
+                if (
+                  totalPages > 7 &&
+                  page !== 1 &&
+                  page !== totalPages &&
+                  Math.abs(page - currentPage) > 1
+                ) {
+                  if (page === 2 || page === totalPages - 1) return <span key={page} className="px-1 text-gray-400">...</span>;
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                      currentPage === page
+                        ? 'text-white shadow-lg shadow-gray-200'
+                        : 'bg-white border border-gray-100 text-gray-400 hover:border-gray-300'
+                    }`}
+                    style={{ backgroundColor: currentPage === page ? BRAND_COLOR : '' }}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next Button */}
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors"
             >
-              Next
+              <FiChevronDown className="-rotate-90" size={20} />
             </button>
           </div>
         </div>
@@ -348,17 +396,17 @@ export default function PricingManagement() {
                 <FiPackage size={24} />
               </div>
             </div>
-            
+
             <div className="mb-10 bg-gray-50 p-6 rounded-[2rem]">
               <label className="block text-[10px] font-black text-gray-400 mb-3 uppercase tracking-[0.2em]">Physical Stock Level</label>
               <div className="relative">
                 <FiPackage className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
                 <input
                   type="number"
-                  value={(currentPrices.stock as any) ?? ''}
-                  onChange={e => setCurrentPrices({ ...currentPrices, stock: parseInt(e.target.value) || 0 })}
+                  value={currentPrices.stock || ''}
+                  onChange={e => setCurrentPrices({ ...currentPrices, stock: e.target.value })}
                   className="w-full text-black pl-12 pr-4 py-4 rounded-2xl border-none outline-none focus:ring-2 focus:ring-gray-200 font-black text-lg"
-                  placeholder="0"
+                  placeholder="Enter stock quantity (e.g., 0)"
                 />
               </div>
             </div>
@@ -372,18 +420,20 @@ export default function PricingManagement() {
                       <label className="text-[9px] font-black text-gray-400 uppercase">Rate</label>
                       <input
                         type="number"
-                        value={(currentPrices[t.key] as any) ?? ''}
-                        onChange={e => setCurrentPrices({ ...currentPrices, [t.key]: parseFloat(e.target.value) || 0 })}
+                        value={currentPrices[t.key] || ''}
+                        onChange={e => setCurrentPrices({ ...currentPrices, [t.key]: e.target.value })}
                         className="w-full py-2 text-black bg-transparent border-b-2 border-gray-100 outline-none focus:border-gray-900 font-black transition-colors"
+                        placeholder="0"
                       />
                     </div>
                     <div className="w-20">
                       <label className="text-[9px] font-black text-gray-400 uppercase">Disc%</label>
                       <input
                         type="number"
-                        value={(currentPrices[t.discKey] as any) ?? ''}
-                        onChange={e => setCurrentPrices({ ...currentPrices, [t.discKey]: parseFloat(e.target.value) || 0 })}
+                        value={currentPrices[t.discKey] || ''}
+                        onChange={e => setCurrentPrices({ ...currentPrices, [t.discKey]: e.target.value })}
                         className="w-full py-2 bg-transparent border-b-2 border-gray-100 outline-none focus:border-gray-900 font-black transition-colors text-green-600"
+                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -392,14 +442,14 @@ export default function PricingManagement() {
             </div>
 
             <div className="flex gap-4">
-              <button 
-                onClick={() => setShowEditModal(false)} 
+              <button
+                onClick={() => setShowEditModal(false)}
                 className="flex-1 py-4 rounded-2xl border border-gray-200 bg-white font-black text-xs uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-all"
               >
                 Discard
               </button>
-              <button 
-                onClick={savePricing} 
+              <button
+                onClick={savePricing}
                 className="flex-[2] py-4 rounded-2xl text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:opacity-90 transition-all"
                 style={{ backgroundColor: BRAND_COLOR }}
               >
@@ -410,6 +460,7 @@ export default function PricingManagement() {
         </div>
       )}
     </div>
+
   );
 }
 

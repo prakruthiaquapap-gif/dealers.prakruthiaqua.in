@@ -149,7 +149,7 @@ export default function LoginPage() {
             <h2 className="text-4xl font-black text-gray-900 mb-2">{isLogin ? "Sign In" : `Step ${step} of 3`}</h2>
             <p className="text-gray-500 font-medium">
               {isLogin ? "Join the network?" : "Already a member?"}
-              <button onClick={toggleMode} className="ml-2 text-[#108542] font-bold hover:underline">
+              <button onClick={toggleMode} className="ml-2 text-[#2c4305] font-bold hover:underline">
                 {isLogin ? "Register Now" : "Login"}
               </button>
             </p>
@@ -160,18 +160,18 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs font-black text-gray-400 uppercase ml-1">Registered Email</label>
-                  <input name="email" type="email" value={formData.email} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" placeholder="email@example.com" />
+                  <input name="email" type="email" value={formData.email} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" placeholder="email@example.com" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-black text-gray-400 uppercase ml-1">Password</label>
                   <div className="relative">
-                    <input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" placeholder="••••••••" />
+                    <input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" placeholder="••••••••" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-gray-400">
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
-                <button onClick={handleLogin} disabled={loading} className="w-full bg-[#108542] text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50">
+                <button onClick={handleLogin} disabled={loading} className="w-full bg-[#2c4305] text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50">
                   {loading ? "AUTHENTICATING..." : "LOGIN"}
                 </button>
               </div>
@@ -181,16 +181,16 @@ export default function LoginPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Email</label>
-                      <input name="email" value={formData.email} placeholder="email@example.com" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                      <input name="email" value={formData.email} placeholder="email@example.com" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Phone</label>
-                      <input name="phone" value={formData.phone} placeholder="Phone Number" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                      <input name="phone" value={formData.phone} placeholder="Phone Number" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Password</label>
                       <div className="relative">
-                        <input name="password" value={formData.password} type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                        <input name="password" value={formData.password} type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-gray-400">
                           {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
@@ -198,9 +198,9 @@ export default function LoginPage() {
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Confirm Password</label>
-                      <input name="confirmPassword" value={formData.confirmPassword} type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                      <input name="confirmPassword" value={formData.confirmPassword} type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
-                    <button onClick={validateStep} disabled={loading} className="w-full bg-[#108542] text-white py-4 rounded-2xl font-black">
+                    <button onClick={validateStep} disabled={loading} className="w-full bg-[#2c4305] text-white py-4 rounded-2xl font-black">
                       {loading ? "CHECKING..." : "CONTINUE"}
                     </button>
                   </div>
@@ -210,25 +210,25 @@ export default function LoginPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Company Name</label>
-                      <input name="companyName" value={formData.companyName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                      <input name="companyName" value={formData.companyName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">GST Number (Optional)</label>
-                      <input name="gstNumber" value={formData.gstNumber} maxLength={15} placeholder="15 Digit GST" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542] uppercase" />
+                      <input name="gstNumber" value={formData.gstNumber} maxLength={15} placeholder="15 Digit GST" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305] uppercase" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-black text-gray-400 uppercase ml-1">First Name</label>
-                        <input name="firstName" value={formData.firstName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                        <input name="firstName" value={formData.firstName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                       </div>
                       <div>
                         <label className="text-xs font-black text-gray-400 uppercase ml-1">Last Name</label>
-                        <input name="lastName" value={formData.lastName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]" />
+                        <input name="lastName" value={formData.lastName} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                       </div>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setStep(1)} className="w-1/3 bg-gray-100 text-gray-600 py-4 rounded-2xl font-black flex items-center justify-center gap-2"><ChevronLeft size={20}/>BACK</button>
-                      <button onClick={validateStep} className="w-2/3 bg-[#108542] text-white py-4 rounded-2xl font-black">NEXT</button>
+                      <button onClick={validateStep} className="w-2/3 bg-[#2c4305] text-white py-4 rounded-2xl font-black">NEXT</button>
                     </div>
                   </div>
                 )}
@@ -237,23 +237,23 @@ export default function LoginPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Role</label>
-                      <select name="role" value={formData.role} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542]">
+                      <select name="role" value={formData.role} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]">
                         <option value="Dealer">Dealer</option>
-                        <option value="Sub Dealer">Sub Dealer</option>
-                        <option value="Retailer Outlet">Retailer Outlet</option>
+                        <option value="sub_dealer">Sub Dealer</option>
+                        <option value="retail_outlet">Retailer Outlet</option>
                       </select>
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Registered Address</label>
-                      <textarea name="address" value={formData.address} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542] h-20" />
+                      <textarea name="address" value={formData.address} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305] h-20" />
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase ml-1">Store Address</label>
-                      <textarea name="storeAddress" value={formData.storeAddress} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#108542] h-20" />
+                      <textarea name="storeAddress" value={formData.storeAddress} onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305] h-20" />
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setStep(2)} className="w-1/3 bg-gray-100 text-gray-600 py-4 rounded-2xl font-black flex items-center justify-center gap-2"><ChevronLeft size={20}/>BACK</button>
-                      <button onClick={handleRegister} disabled={loading} className="w-2/3 bg-[#108542] text-white py-4 rounded-2xl font-black">
+                      <button onClick={handleRegister} disabled={loading} className="w-2/3 bg-[#2c4305] text-white py-4 rounded-2xl font-black">
                         {loading ? "PROCESSING..." : "SUBMIT"}
                       </button>
                     </div>

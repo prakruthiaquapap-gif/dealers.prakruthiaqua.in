@@ -94,7 +94,7 @@ export default function DealerProfile() {
         toast.success("Logged out successfully");
     };
 
-    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#108542]">LOADING PROFILE...</div>;
+    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#2c4305]">LOADING PROFILE...</div>;
 
     // Consistency: Take the name exactly as it appears in the address
     const finalDisplayName = address?.name || profile?.dealer_name || "Dealer Partner";
@@ -121,7 +121,7 @@ export default function DealerProfile() {
                 {/* LEFT: Identity & Business Performance */}
                 <div className="lg:col-span-4 space-y-6">
                     <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-[#108542]"></div>
+                        <div className="absolute top-0 left-0 w-full h-2 bg-[#2c4305]"></div>
                         <div className="w-28 h-28 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-slate-50/50">
                             <MdPerson size={60} className="text-slate-300" />
                         </div>
@@ -132,7 +132,7 @@ export default function DealerProfile() {
                                     type="text"
                                     value={tempName}
                                     onChange={(e) => setTempName(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 text-center font-black text-lg p-2 rounded-xl outline-[#108542]"
+                                    className="bg-slate-50 border border-slate-200 text-center font-black text-lg p-2 rounded-xl outline-[#2c4305]"
                                 />
                                 <div className="flex gap-2 justify-center">
                                     <button onClick={handleUpdateName} className="p-2 bg-green-500 text-white rounded-lg"><MdCheck /></button>
@@ -144,7 +144,7 @@ export default function DealerProfile() {
                                 {finalDisplayName}
                                 <MdEdit
                                     size={16}
-                                    className="text-slate-300 cursor-pointer hover:text-[#108542]"
+                                    className="text-slate-300 cursor-pointer hover:text-[#2c4305]"
                                     onClick={() => {
                                         setTempName(finalDisplayName);
                                         setIsEditingName(true);
@@ -159,13 +159,13 @@ export default function DealerProfile() {
                         </div>
 
                         <div className="mt-6 pt-6 border-t border-slate-50">
-                            <span className="text-[10px] font-black text-white bg-[#108542] px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md">
+                            <span className="text-[10px] font-black text-white bg-[#2c4305] px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md">
                                 {profile?.role || 'Retailer'}
                             </span>
                         </div>
                     </div>
 
-                    <div className="bg-[#2c4305] p-10 rounded-[3.5rem] text-white shadow-2xl shadow-[#2c4305]/30 relative overflow-hidden group">
+                    <div className="bg-[#5e7e26]  p-10 rounded-[3.5rem] text-white shadow-2xl shadow-[#2c4305]/30 relative overflow-hidden group">
                         {/* Background Decorative Icon */}
                         <div className="absolute -right-6 -bottom-6 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
                             <MdShoppingBag size={150} />
@@ -175,7 +175,7 @@ export default function DealerProfile() {
                         <div className="relative z-10 flex items-center gap-2 mb-8">
                             <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
                             <p className="text-[10px] font-black uppercase text-green-200/60 tracking-[0.25em]">
-                                Business Performance
+                                User Performance
                             </p>
                         </div>
 
@@ -186,7 +186,7 @@ export default function DealerProfile() {
                                     ₹{stats.totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </p>
                                 <p className="text-[10px] font-bold text-white/50 uppercase mt-2 tracking-widest">
-                                    Total Procurement Investment
+                                  Total Amount Investment
                                 </p>
                             </div>
 
@@ -213,7 +213,7 @@ export default function DealerProfile() {
                 <div className="lg:col-span-8 space-y-6">
                     <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-3 mb-8">
-                            <div className="p-3 bg-green-50 rounded-2xl text-[#108542]">
+                            <div className="p-3 bg-green-50 rounded-2xl text-[#2c4305]">
                                 <MdBadge size={24} />
                             </div>
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">General Information</h3>
@@ -240,7 +240,7 @@ export default function DealerProfile() {
                     <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative">
                         <div className="flex justify-between items-center mb-8">
                             <div className="flex items-center gap-3">
-                                <div className="p-3 bg-green-50 rounded-2xl text-[#108542]">
+                                <div className="p-3 bg-green-50 rounded-2xl text-[#2c4305]">
                                     <MdLocationOn size={24} />
                                 </div>
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Shipping Destination</h3>
@@ -258,7 +258,7 @@ export default function DealerProfile() {
                                 <p className="text-lg font-black text-slate-800 mb-2">{address.name}</p>
                                 <p className="text-slate-500 font-medium">{address.house_no}, {address.area}</p>
                                 <p className="text-slate-500 font-medium">{address.city}, {address.state} - {address.pincode}</p>
-                                <div className="mt-6 pt-6 border-t border-slate-200/50 flex items-center gap-2 text-[#108542] font-black text-xs">
+                                <div className="mt-6 pt-6 border-t border-slate-200/50 flex items-center gap-2 text-[#2c4305] font-black text-xs">
                                     <MdPhone size={16} /> {address.phone}
                                 </div>
                             </div>

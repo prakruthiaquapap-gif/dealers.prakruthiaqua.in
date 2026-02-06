@@ -43,6 +43,9 @@ export default function MainSupplierDashboard() {
     revenue: 0
   });
 
+  // 🔴 NEW: state to show red dot
+  const [showNewOrdersDot, setShowNewOrdersDot] = useState(false);
+
   const [groupBy, setGroupBy] = useState('month');
 
   useEffect(() => {
@@ -73,13 +76,26 @@ export default function MainSupplierDashboard() {
       const { count: dOrders } = await supabase.from('dealer_orders').select('*', { count: 'exact', head: true });
       const { count: rOrders } = await supabase.from('retail_orders').select('*', { count: 'exact', head: true });
 
+      const totalOrdersNow = (dOrders || 0) + (rOrders || 0);
+
+      // 🔴 NEW: Fetch last_seen_order_count from suppliers table
+      const { data: supplierData } = await supabase
+        .from('suppliers')
+        .select('last_seen_order_count')
+        .single();
+
+      const lastSeen = supplierData?.last_seen_order_count || 0;
+
+      // 🔴 NEW: show red dot only if new orders exist
+      if (totalOrdersNow > lastSeen) {
+        setShowNewOrdersDot(true);
+      }
+
       // Process Dealer Roles
       const roles = {
         total: dealersData?.length || 0,
-        // Checks for exactly 'pending'
         pending: dealersData?.filter(d => d.approval_status === 'pending').length || 0,
 
-        // Logic updated to match your database strings
         dealer: dealersData?.filter(d =>
           d.role?.toLowerCase() === 'dealer'
         ).length || 0,
@@ -101,7 +117,7 @@ export default function MainSupplierDashboard() {
         retailerCount: roles.retailer,
         totalProducts: productCount || 0,
         lowStockCount: lowStock || 0,
-        totalOrders: (dOrders || 0) + (rOrders || 0),
+        totalOrders: totalOrdersNow,
         revenue: 452000, // Replace with actual revenue aggregation logic if needed
       });
     } catch (error) {
@@ -116,8 +132,8 @@ export default function MainSupplierDashboard() {
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Executive Dashboard</h1>
-          <p className="text-slate-500 font-medium">Real-time Prakruthi Supply Chain Analytics</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Prakruthiaqua Dashboard</h1>
+          <p className="text-slate-500 font-medium">Prakruthi Supply Chain Analytics</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
           <span className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -163,6 +179,7 @@ export default function MainSupplierDashboard() {
           value={stats.totalOrders}
           icon={<FiShoppingCart />}
           color="bg-emerald-500"
+          highlight={showNewOrdersDot}  // 🔴 NEW: red dot logic
           onClick={() => router.push('/pages/manage-orders')}
           description="Combined Sales Volume"
         />
@@ -217,7 +234,6 @@ export default function MainSupplierDashboard() {
 }
 
 // --- Sub-Components ---
-
 function MainStatCard({ label, value, icon, color, description, highlight, onClick }: any) {
   return (
     <div

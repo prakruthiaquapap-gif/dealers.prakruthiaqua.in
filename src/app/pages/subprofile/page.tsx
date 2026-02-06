@@ -168,7 +168,7 @@ Sub-Dealer Profile</h1>
                     </div>
 
                     {/* Stats Card */}
-                    <div className="bg-[#2c4305] p-10 rounded-[3.5rem] text-white shadow-2xl shadow-[#2c4305]/20 relative overflow-hidden">
+                    <div className="bg-[#5e7e26] p-10 rounded-[3.5rem] text-white shadow-2xl shadow-[#2c4305]/20 relative overflow-hidden">
                         <MdTrendingUp className="absolute -right-6 -top-6 text-white/10" size={180} />
                         
                         <p className="text-[10px] font-black uppercase text-white/50 mb-8 tracking-[0.25em]">Procurement Volume</p>
@@ -176,7 +176,7 @@ Sub-Dealer Profile</h1>
                         <div className="relative z-10 space-y-8">
                             <div>
                                 <p className="text-4xl font-black tracking-tighter">₹{stats.totalSpent.toLocaleString()}</p>
-                                <p className="text-[9px] font-bold text-white/60 uppercase mt-2 tracking-widest">Total Investment</p>
+                                <p className="text-[9px] font-bold text-white/60 uppercase mt-2 tracking-widest">Total Amount Investment</p>
                             </div>
                             
                             <div className="flex justify-between items-center pt-8 border-t border-white/10">

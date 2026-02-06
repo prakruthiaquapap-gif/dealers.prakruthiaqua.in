@@ -7,10 +7,12 @@ import {
   MdAnalytics,
   MdPriceChange,
   MdGroups,
-  MdPersonAdd
+  MdPersonAdd,
+  MdLayers // Added for Category icon
 } from 'react-icons/md';
 
 export const getNavbarItems = (role: string) => {
+  // Normalize by converting to lowercase and trimming
   const normalizedRole = role?.toLowerCase().trim();
 
   switch (normalizedRole) {
@@ -26,6 +28,7 @@ export const getNavbarItems = (role: string) => {
     case 'admin':
       return [
         { name: "Overview", path: "/pages/main-supplier-dashboard", icon: <MdAnalytics /> },
+        { name: "Categories", path: "/pages/catgorypage", icon: <MdLayers /> }, 
         { name: "Product Management", path: "/pages/product-management", icon: <MdGridView /> },
         { name: "Update Price & Stock", path: "/pages/pricing-management", icon: <MdPriceChange /> },
         { name: "Manage Dealers", path: "/pages/manage-dealers", icon: <MdGroups /> },
@@ -33,26 +36,28 @@ export const getNavbarItems = (role: string) => {
         { name: "All Orders", path: "/pages/manage-orders", icon: <MdOutlineReceiptLong /> },
       ];
 
-
-    case 'sub dealer':
+    // UPDATED TO MATCH DATABASE: sub_dealer
+    case 'sub_dealer':
+    case 'sub dealer': // Keep both just in case
       return [
         { name: "Overview", path: "/pages/dashboard", icon: <MdAnalytics /> },
-        { name: "Products", path: "/pages/subproducts", icon: <MdGridView /> },
-        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, // Added Cart
+        { name: "Products", path: "/pages/products", icon: <MdGridView /> },
+        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, 
         { name: "Track Orders", path: "/pages/orders", icon: <MdOutlineReceiptLong /> },
         { name: "Profile", path: "/pages/subprofile", icon: <MdAccountCircle /> },
       ];
 
-    case 'retailer outlet':
+    // UPDATED TO MATCH DATABASE: retail_outlet
+    case 'retail_outlet':
+    case 'retailer outlet': // Keep both just in case
       return [
         { name: "Overview", path: "/pages/dashboard", icon: <MdAnalytics /> },
-        { name: "Products", path: "/pages/retproducts", icon: <MdGridView /> },
-        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, // Added Cart
+        { name: "Products", path: "/pages/products", icon: <MdGridView /> },
+        { name: "Cart", path: "/pages/cart", icon: <MdShoppingBag /> }, 
         { name: "Track Orders", path: "/pages/orders", icon: <MdOutlineReceiptLong /> },
         { name: "Profile", path: "/pages/retprofile", icon: <MdAccountCircle /> },
       ];
 
-  // ... other roles remain same without Sub-Dealers
     default:
       return [];
   }

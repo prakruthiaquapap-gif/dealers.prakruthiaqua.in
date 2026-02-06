@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase';
 import { getNavbarItems } from '@/Components/navigation';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { MdLogout, MdNotifications, MdPerson, MdShoppingBag } from 'react-icons/md';
+import { MdLogout, MdNotifications, MdPerson, MdShoppingBag, MdDashboard, MdListAlt } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,48 +30,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!error) setCartCount(count || 0);
   };
 
-useEffect(() => {
-  const protectRoute = async () => {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+  useEffect(() => {
+    const protectRoute = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      router.push('/login');
-      return;
-    }
-
-    const { data: dealer, error: dbError } = await supabase
-      .from('dealers')
-      .select('role, first_name, last_name, approval_status')
-      .eq('user_id', user.id)
-      .single();
-
-    if (dbError || !dealer || dealer.approval_status !== 'approved') {
-      if (dealer?.approval_status !== 'approved') toast.error("Account pending approval.");
-      await supabase.auth.signOut();
-      router.push('/login');
-      return;
-    }
-
-    setRole(dealer.role);
-    setUserName(`${dealer.first_name} ${dealer.last_name}`);
-    setLoading(false);
-
-    // --- NEW REDIRECT LOGIC ---
-    if (dealer.role === 'admin') {
-      // If admin is on the default dashboard or root, push to supplier dashboard
-      if (pathname === '/pages/dashboard' || pathname === '/') {
-        router.push('/pages/main-supplier-dashboard');
+      if (authError || !user) {
+        router.push('/login');
+        return;
       }
-    } else {
-      fetchCartCount(); // Only non-admins need cart data
-    }
-  };
 
-  protectRoute();
+      const { data: dealer, error: dbError } = await supabase
+        .from('dealers')
+        .select('role, first_name, last_name, approval_status')
+        .eq('user_id', user.id)
+        .single();
 
-  window.addEventListener('cartUpdated', fetchCartCount);
-  return () => window.removeEventListener('cartUpdated', fetchCartCount);
-}, [router, supabase, pathname]); // Added pathname here
+      if (dbError || !dealer || dealer.approval_status !== 'approved') {
+        if (dealer?.approval_status !== 'approved') toast.error("Account pending approval.");
+        await supabase.auth.signOut();
+        router.push('/login');
+        return;
+      }
+
+      setRole(dealer.role);
+      setUserName(`${dealer.first_name} ${dealer.last_name}`);
+      setLoading(false);
+
+      if (dealer.role === 'admin') {
+        if (pathname === '/pages/dashboard' || pathname === '/') {
+          router.push('/pages/main-supplier-dashboard');
+        }
+      } else {
+        fetchCartCount();
+      }
+    };
+
+    protectRoute();
+
+    window.addEventListener('cartUpdated', fetchCartCount);
+    return () => window.removeEventListener('cartUpdated', fetchCartCount);
+  }, [router, supabase, pathname]);
 
   if (loading) {
     return (
@@ -85,17 +83,15 @@ useEffect(() => {
   const menuItems = getNavbarItems(role);
 
   return (
-    <div className="flex min-h-screen bg-[#f1f3f4]"> {/* Light grey/white background */}
+    <div className="flex min-h-screen bg-[#f8f9fa]">
       {/* SIDEBAR */}
       <aside className="w-72 bg-white text-slate-800 flex flex-col fixed h-full border-r border-gray-200 z-50">
-
-        {/* LOGO SECTION - No text, centered Plogo.png */}
-        {/* LOGO SECTION - Increased size, centered Plogo.png */}
-        <div className="p-12 flex flex-col items-center justify-center border-b border-gray-50 bg-gray-50/30">
+        {/* LOGO SECTION - Height matched to header */}
+        <div className="h-24 flex items-center justify-center border-b border-gray-100 bg-white overflow-hidden">
           <img
             src="/Plogo.png"
             alt="Prakruthi"
-            className="w-40 h-40 object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
+            className="w-56 h-auto object-contain transition-transform hover:scale-105 duration-300"
           />
         </div>
 
@@ -117,7 +113,6 @@ useEffect(() => {
           })}
         </nav>
 
-        {/* LOGOUT - Styled to match your new theme */}
         <button
           onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
           className="m-6 p-4 flex items-center justify-center gap-3 text-red-500 bg-red-50 hover:bg-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
@@ -128,15 +123,16 @@ useEffect(() => {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 ml-72 flex flex-col">
-        <header className="h-24 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-10 sticky top-0 z-40 shadow-sm">
+        {/* TOP HEADER */}
+        <header className="h-24 bg-white border-b border-gray-100 flex items-center justify-between px-10 sticky top-0 z-40">
           <div>
             <h1 className="text-xs font-black text-[#2c4305] uppercase tracking-[0.2em] opacity-70">
               {role} Portal
             </h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Management System</p>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* CART BUTTON - Only show if role is NOT 'admin' */}
             {role !== 'admin' && (
               <Link
                 href="/pages/cart"
@@ -158,19 +154,19 @@ useEffect(() => {
                   Approved
                 </p>
               </div>
-              <div className="w-12 h-12 bg-[#2c4305] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#2c4305]/20 transition-transform hover:scale-105">
+              <div className="w-12 h-12 bg-[#2c4305] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#2c4305]/20">
                 <MdPerson size={24} />
               </div>
             </div>
           </div>
         </header>
 
-        {/* REMOVED EXCESS SPACE HERE: Changed p-10 to p-6 and removed min-h calculation */}
-        <main className="p-1">
+        {/* MAIN BODY */}
+        <main className="p-0">
           {children}
         </main>
-      </div>
 
+      </div>
     </div>
   );
 }

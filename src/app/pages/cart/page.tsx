@@ -80,7 +80,7 @@ export default function CartPage() {
     const totalDiscount = cartItems.reduce((acc, item) => acc + (item.price * item.quantity * (item.discount_percentage / 100)), 0);
     const finalTotal = subtotal - totalDiscount;
 
-    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#108542]">LOADING CART...</div>;
+    if (loading) return <div className="p-20 text-center font-black animate-pulse text-[#2c4305]">LOADING CART...</div>;
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
@@ -112,7 +112,7 @@ export default function CartPage() {
 
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <p className="text-[10px] font-black text-[#108542] uppercase">{item.products.subcategory}</p>
+                                            <p className="text-[10px] font-black text-[#2c4305] uppercase">{item.products.subcategory}</p>
                                             <span className="bg-[#1a2b4b] text-white text-[9px] px-2 py-0.5 rounded-full font-bold">{item.variant_label}</span>
                                         </div>
                                         <h4 className="font-black text-slate-800 text-lg leading-tight">{item.products.product_name}</h4>
@@ -194,7 +194,7 @@ export default function CartPage() {
                                 <p className="text-4xl font-black">₹{finalTotal.toFixed(2)}</p>
                             </div>
 
-                            <button onClick={() => router.push('/pages/checkout')} className="w-full bg-[#108542] hover:bg-[#0d6e36] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest mt-4 shadow-lg">
+                            <button onClick={() => router.push('/pages/checkout')} className="w-full bg-[#2c4305] hover:bg-[#0d6e36] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest mt-4 shadow-lg">
                                 PROCEED TO CHECKOUT
                             </button>
                         </div>

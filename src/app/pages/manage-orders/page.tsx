@@ -2,24 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase';
-import { 
-  FiSearch, FiDownload, FiChevronLeft, FiChevronRight, 
-  FiFilter, FiPackage, FiHash, FiClock, FiAlertCircle, 
-  FiCheckCircle, FiTruck, FiBox, FiXCircle
+import {
+  FiSearch, FiEye, FiX, FiPackage, FiTruck, FiMail, FiClock, FiCheckCircle, FiAlertCircle, FiMapPin, FiCalendar
 } from 'react-icons/fi';
-import * as XLSX from 'xlsx';
-
-const ITEMS_PER_PAGE = 10;
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function DealerOrders() {
   const supabase = createClient();
+  const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
 
   const [orders, setOrders] = useState<any[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const STATUS_FLOW = ['pending', 'Processing', 'Shipped', 'Delivered'];
+  const isOptionDisabled = (current: string, option: string) => {
+    const currentIndex = STATUS_FLOW.indexOf(current || 'pending');
+    const optionIndex = STATUS_FLOW.indexOf(option);
+
+    // Disable all previous statuses
+    return optionIndex < currentIndex;
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -28,276 +32,372 @@ export default function DealerOrders() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const [dRes, sRes, rRes] = await Promise.all([
+      const [dRes, sRes, rRes, profileRes] = await Promise.all([
         supabase.from('dealer_orders').select('*'),
         supabase.from('subdealer_orders').select('*'),
         supabase.from('retail_orders').select('*'),
+        supabase.from('dealers').select('id, user_id, email')
       ]);
 
+      // Map using both ID and User_ID just to be safe based on your schema
+      const emailMap = new Map();
+      profileRes.data?.forEach(d => {
+        emailMap.set(d.id, d.email);
+        emailMap.set(d.user_id, d.email);
+      });
+
       const allOrders = [
-        ...(dRes.data || []).map(o => ({ ...o, role: 'Dealer', displayId: `D-${o.id}` })),
-        ...(sRes.data || []).map(o => ({ ...o, role: 'Sub Dealer', displayId: `SD-${o.id}` })),
-        ...(rRes.data || []).map(o => ({ ...o, role: 'Retail', displayId: `RT-${o.id}` })),
+        ...(dRes.data || []).map(o => ({
+          ...o,
+          role: 'Dealer',
+          displayId: `D-${o.id}`,
+          userEmail: emailMap.get(o.dealer_id) || emailMap.get(o.dealer_user_id)
+        })),
+        ...(sRes.data || []).map(o => ({
+          ...o,
+          role: 'Sub Dealer',
+          displayId: `SD-${o.id}`,
+          userEmail: emailMap.get(o.subdealer_id)
+        })),
+        ...(rRes.data || []).map(o => ({
+          ...o,
+          role: 'Retail',
+          displayId: `RT-${o.id}`,
+          userEmail: emailMap.get(o.retail_id)
+        })),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setOrders(allOrders);
       setFilteredOrders(allOrders);
     } catch (error) {
-      console.error('Fetch Error:', error);
+      console.error(error);
+      toast.error("Failed to sync orders");
     } finally {
       setLoading(false);
     }
   };
 
-  const updateOrderStatus = async (orderId: number, role: string, newStatus: string) => {
+  /**
+   * EMAIL NOTIFICATION LOGIC
+   * Integration point for Resend/SendGrid/Supabase Edge Functions
+   */
+  const sendEmailNotification = async (order: any, newStatus: string) => {
+    const addr = getAddress(order);
+    const targetEmail = order.userEmail || addr?.email;
+
+    if (!targetEmail || targetEmail === 'Email Not Found') {
+      toast.error("No valid email found to notify customer");
+      return;
+    }
+
     try {
-      let tableName = '';
-      if (role === 'Dealer') tableName = 'dealer_orders';
-      else if (role === 'Sub Dealer') tableName = 'subdealer_orders';
-      else tableName = 'retail_orders';
+      const response = await fetch('/api/send-status-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.displayId,
+          status: newStatus,
+          customerName: addr?.name || 'Valued Customer',
+          items: getItems(order), // This uses your existing helper
+          customerEmail: targetEmail,
+          totalAmount: order.total_amount
+        }),
+      });
 
-      const { error } = await supabase
-        .from(tableName)
-        .update({ delivery_status: newStatus })
-        .eq('id', orderId);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to send');
 
-      if (error) throw error;
-
-      setOrders(prev => prev.map(o => 
-        (o.id === orderId && o.role === role) ? { ...o, delivery_status: newStatus } : o
-      ));
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Failed to update status");
+      toast.success(`Notification sent to ${targetEmail}`);
+    } catch (error: any) {
+      console.error("Email Error:", error);
+      toast.error("Order updated, but email failed: " + error.message);
     }
   };
 
-  useEffect(() => {
-    const result = orders.filter((o) => {
-      const searchLower = search.toLowerCase();
-      const matchesSearch = 
-        o.displayId.toLowerCase().includes(searchLower) ||
-        (o.dealer_id || o.subdealer_id || o.retail_id || '').includes(searchLower);
-      const matchesRole = roleFilter === 'All' || o.role === roleFilter;
-      return matchesSearch && matchesRole;
-    });
-    setFilteredOrders(result);
-    setCurrentPage(1);
-  }, [search, roleFilter, orders]);
+  const updateOrderStatus = async (order: any, newStatus: string) => {
+    if (order.delivery_status === newStatus) return;
 
-  const exportToExcel = () => {
-    const data = filteredOrders.map((o) => ({
-      'Order Ref': o.displayId,
-      'User Type': o.role,
-      'Payment': o.payment_status.toUpperCase(),
-      'Delivery': o.delivery_status || 'Pending',
-      'Total Amount': o.total_amount,
-      'Balance Due': o.remaining_amount,
-      'Date': new Date(o.created_at).toLocaleDateString()
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
-    XLSX.writeFile(wb, `Prakruthi_Orders_${new Date().toLocaleDateString()}.xlsx`);
+    const loadingToast = toast.loading(`Updating to ${newStatus}...`);
+
+    try {
+      const tableName =
+        order.role === 'Dealer'
+          ? 'dealer_orders'
+          : order.role === 'Sub Dealer'
+            ? 'subdealer_orders'
+            : 'retail_orders';
+
+      // ✅ Optimistic UI update
+      setOrders(prev =>
+        prev.map(o =>
+          o.displayId === order.displayId
+            ? { ...o, delivery_status: newStatus }
+            : o
+        )
+      );
+
+      setFilteredOrders(prev =>
+        prev.map(o =>
+          o.displayId === order.displayId
+            ? { ...o, delivery_status: newStatus }
+            : o
+        )
+      );
+
+      // ✅ DB update
+      const { error } = await supabase
+        .from(tableName)
+        .update({ delivery_status: newStatus })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      // ✅ Email gets UPDATED order
+      await sendEmailNotification(
+        { ...order, delivery_status: newStatus },
+        newStatus
+      );
+
+      toast.success('Status updated & Email sent', { id: loadingToast });
+
+      // optional but safe
+      fetchOrders();
+    } catch (err) {
+      toast.error('Update failed', { id: loadingToast });
+    }
   };
 
-  const currentData = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const getItems = (order: any) => {
+    try {
+      const rawItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+      if (!rawItems) return [];
+      return (Array.isArray(rawItems) ? rawItems : [rawItems]).map(item => ({
+        name: item.name || item.products?.product_name || item.product_name || "Unknown Product",
+        quantity: item.quantity || 0,
+        price: item.price || item.price_at_purchase || 0
+      }));
+    } catch (e) { return []; }
+  };
+
+  const getAddress = (order: any) => {
+    try {
+      return typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
+    } catch (e) { return {}; }
+  };
+
+useEffect(() => {
+  const result = orders.filter(o => {
+    const addr = getAddress(o);
+    const searchLower = search.toLowerCase();
+
+    const matchesSearch =
+      o.displayId.toLowerCase().includes(searchLower) ||
+      (o.userEmail || '').toLowerCase().includes(searchLower) ||
+      (addr?.name || '').toLowerCase().includes(searchLower);
+
+    const matchesStatus =
+      statusFilter === 'all' || o.delivery_status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  setFilteredOrders(result);
+}, [search, statusFilter, orders]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 lg:p-12 font-sans text-slate-900">
-      
-      {/* --- HEADER --- */}
-      <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 mb-2">Order Management</h1>
-          <p className="text-slate-500 font-medium">Approve and track deliveries across all partners</p>
-        </div>
-        <button 
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-emerald-200"
-        >
-          <FiDownload size={20}/> Export Data
-        </button>
+    <div className="min-h-screen bg-[#F4F6F4] p-4 text-slate-900 font-sans">
+      <Toaster position="top-right" />
+
+      {/* 1. TOP STATS PANEL */}
+      <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatBox label="Total Order" count={orders.length} icon={<FiPackage />} color="bg-white text-slate-900" />
+        <StatBox label="Pending" count={orders.filter(o => o.delivery_status === 'pending').length} icon={<FiClock />} color="bg-white text-slate-900" />
+        <StatBox label="Shipping" count={orders.filter(o => o.delivery_status === 'Shipped').length} icon={<FiTruck />} color="bg-white text-slate-900" />
+        <StatBox label="Delivered" count={orders.filter(o => o.delivery_status === 'Delivered').length} icon={<FiCheckCircle />} color="bg-white text-slate-900" />
       </div>
 
-      {/* --- SUMMARY STATS --- */}
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        {[
-          { label: 'New Orders', count: orders.filter(o => !o.delivery_status || o.delivery_status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50', icon: <FiClock /> },
-          { label: 'Confirmed', count: orders.filter(o => o.delivery_status === 'Confirmed').length, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: <FiCheckCircle /> },
-          { label: 'In Transit', count: orders.filter(o => o.delivery_status === 'Shipped').length, color: 'text-blue-600', bg: 'bg-blue-50', icon: <FiTruck /> },
-          { label: 'Delivered', count: orders.filter(o => o.delivery_status === 'Delivered').length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: <FiBox /> },
-        ].map((stat, i) => (
-          <div key={i} className={`${stat.bg} p-6 rounded-[2rem] border border-white shadow-sm flex flex-col justify-between`}>
-            <div className={`${stat.color} text-xl mb-4`}>{stat.icon}</div>
-            <div>
-              <p className={`text-[10px] font-black uppercase tracking-widest ${stat.color} mb-1`}>{stat.label}</p>
-              <p className="text-3xl font-black text-slate-900">{stat.count}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* 2. HEADER & SEARCH */}
+      <div className="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+  <div>
+    <h1 className="text-2xl font-black text-[#2c4305]">Order CONTROL</h1>
+    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center md:text-left">
+      Real-time Order Management
+    </p>
+  </div>
 
-      {/* --- FILTERS --- */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="md:col-span-2 relative">
-          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text"
-            placeholder="Search Order Ref or User ID..."
-            className="w-full pl-12 pr-4 py-4 bg-white border-none rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-slate-700"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="relative">
-          <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select 
-            className="w-full pl-12 pr-4 py-4 bg-white border-none rounded-2xl shadow-sm appearance-none focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-600"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
-            <option value="All">All Partner Tiers</option>
-            <option value="Dealer">Dealers</option>
-            <option value="Sub Dealer">Sub Dealers</option>
-            <option value="Retail">Retailers</option>
-          </select>
-        </div>
-      </div>
+  <div className="flex gap-3 w-full md:w-auto">
+    {/* Search */}
+    <div className="relative w-full md:w-72">
+      <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        type="text"
+        placeholder="Search orders..."
+        className="w-full pl-12 pr-4 py-3 rounded-2xl border-none shadow-sm font-bold text-sm focus:ring-2 focus:ring-[#2c4305]"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+    </div>
 
-      {/* --- TABLE --- */}
-      <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+    {/* Status Filter */}
+    <select
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      className="px-4 py-3 rounded-2xl bg-white shadow-sm border border-slate-200 text-sm font-black uppercase
+        focus:ring-2 focus:ring-[#2c4305] cursor-pointer"
+    >
+      <option value="all">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="Processing">Processing</option>
+      <option value="Shipped">Shipped</option>
+      <option value="Delivered">Delivered</option>
+    </select>
+  </div>
+</div>
+
+
+      {/* 3. TABLE */}
+      <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Reference</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Partner</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Items Ordered</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Financials</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approval / Status</th>
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#2c4305] text-white">
+              <tr>
+                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Order Details</th>
+                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Customer & Email</th>
+                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Status</th>
+                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100 font-bold">
               {loading ? (
-                <tr><td colSpan={5} className="py-20 text-center font-bold text-slate-400 animate-pulse">Synchronizing Cloud Database...</td></tr>
-              ) : currentData.map((order) => (
-                <tr key={order.displayId} className="hover:bg-slate-50/80 transition-colors group">
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:scale-110 transition-transform">
-                        <FiHash />
-                      </div>
-                      <div>
-                        <p className="font-black text-slate-900">{order.displayId}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(order.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </td>
+                <tr><td colSpan={4} className="py-24 text-center animate-pulse text-slate-300 italic">Fetching Logistics...</td></tr>
+              ) : filteredOrders.map((order) => {
+                const addr = getAddress(order);
+                const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
 
-                  <td className="px-8 py-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter border ${
-                      order.role === 'Dealer' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                      order.role === 'Sub Dealer' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                      'bg-orange-50 text-orange-600 border-orange-100'
-                    }`}>
-                      {order.role}
-                    </span>
-                  </td>
+                return (
+                  <tr key={`${order.role}-${order.id}`} className="hover:bg-slate-50 transition-all">
+                    <td className="px-6 py-5">
+                      <p className="text-[#2c4305] font-black">{order.displayId}</p>
+                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
+                        <FiCalendar /> {orderDate}
+                      </p>
+                    </td>
+                    <td className="px-6 py-5">
+                      <p className="text-slate-900">{addr?.name || 'User'}</p>
+                      <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                        <FiMail className="text-[#2c4305]" /> {order.userEmail ?? addr?.email ?? 'N/A'}
+                      </p>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <select
+                        value={order.delivery_status || 'pending'}
+                        onChange={(e) => updateOrderStatus(order, e.target.value)}
+                        disabled={order.delivery_status === 'Delivered'}
+                        className={`text-[11px] bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-black uppercase outline-none
+    focus:ring-2 focus:ring-[#2c4305] cursor-pointer
+    ${order.delivery_status === 'Delivered' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        {STATUS_FLOW.map(status => (
+                          <option
+                            key={status}
+                            value={status}
+                            disabled={isOptionDisabled(order.delivery_status, status)}
+                          >
+                            {status}
+                          </option>
+                        ))}
+                      </select>
 
-                  <td className="px-8 py-6">
-                    <div className="flex flex-wrap gap-2 max-w-[350px]">
-                      {order.items?.map((item: any, idx: number) => (
-                        <div key={idx} className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-200">
-                          <FiPackage size={12} className="text-slate-400" />
-                          <span className="text-xs font-bold text-slate-700">
-                            {item.products?.product_name || item.name || 'Item'} × {item.quantity}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-
-                  <td className="px-8 py-6">
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-900">₹{order.total_amount.toLocaleString()}</p>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Paid: ₹{Number(order.paid_amount || 0).toLocaleString()}</p>
-                        {order.remaining_amount > 0 && (
-                          <div className="flex items-center gap-1 text-[9px] font-black text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded w-fit">
-                            <FiAlertCircle size={10}/> Due: ₹{order.remaining_amount.toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col gap-3">
-                      {/* Workflow Dropdown */}
-                      <div className="relative w-fit">
-                        <select
-                          value={order.delivery_status || 'pending'}
-                          onChange={(e) => updateOrderStatus(order.id, order.role, e.target.value)}
-                          className={`appearance-none pl-3 pr-8 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all cursor-pointer outline-none ${
-                            order.delivery_status === 'Delivered' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
-                            order.delivery_status === 'Shipped' ? 'bg-blue-50 border-blue-200 text-blue-600' :
-                            order.delivery_status === 'Confirmed' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' :
-                            order.delivery_status === 'Cancelled' ? 'bg-red-50 border-red-200 text-red-600' :
-                            'bg-slate-50 border-slate-200 text-slate-500'
-                          }`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="Confirmed">Confirm</option>
-                          <option value="Shipped">Ship</option>
-                          <option value="Delivered">Deliver</option>
-                          <option value="Cancelled">Cancel</option>
-                        </select>
-                        <FiChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none opacity-40" size={12} />
-                      </div>
-
-                      {/* Payment Status Label */}
-                      <div className="flex items-center gap-2 border-t border-slate-100 pt-2">
-                        <div className={`flex items-center gap-1 font-black text-[9px] uppercase tracking-widest ${
-                          order.payment_status === 'paid' ? 'text-emerald-500' : 
-                          order.paid_amount > 0 ? 'text-blue-500' : 'text-amber-500'
-                        }`}>
-                          {order.payment_status === 'paid' ? <FiCheckCircle size={12}/> : <FiClock size={12}/>}
-                          {order.payment_status === 'paid' ? 'Paid' : order.paid_amount > 0 ? 'Partial' : 'Pending'}
-                        </div>
-                        {order.payment_id === 'CASH_ON_DELIVERY' && (
-                          <span className="text-[8px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-black">COD</span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <button onClick={() => setSelectedOrder(order)} className="p-2 bg-slate-100 text-[#2c4305] rounded-xl hover:bg-[#2c4305] hover:text-white transition-all shadow-sm">
+                        <FiEye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* --- PAGINATION --- */}
-      <div className="max-w-7xl mx-auto mt-8 flex items-center justify-between bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
-        <button 
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(p => p - 1)}
-          className="p-3 rounded-xl hover:bg-slate-50 disabled:opacity-30 transition-all border border-slate-100"
-        >
-          <FiChevronLeft size={20} />
-        </button>
-        <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
-          Page <span className="text-indigo-600">{currentPage}</span> / {totalPages || 1}
+      {/* 4. MODAL */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 bg-[#2c4305] text-white flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-black">{selectedOrder.displayId}</h2>
+                <p className="text-[10px] uppercase font-bold text-white/60 italic">Ordered on {new Date(selectedOrder.created_at).toLocaleDateString()}</p>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="p-2 bg-white/10 rounded-xl hover:bg-red-500 transition-all">
+                <FiX size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="mb-6">
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2"><FiPackage /> Items Summary</p>
+                <div className="space-y-3">
+                  {getItems(selectedOrder).map((item, i) => (
+                    <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200/50">
+                      <div>
+                        <p className="font-black text-slate-800 text-sm uppercase">{item.name}</p>
+                        <p className="text-[10px] font-bold text-slate-400 tracking-tighter">RATE: ₹{item.price}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-white bg-[#2c4305] px-3 py-1 rounded-lg">x{item.quantity}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-2 flex items-center gap-2"><FiMapPin /> Shipping To</p>
+                <p className="text-sm font-black text-slate-700 leading-relaxed">
+                  {getAddress(selectedOrder)?.name}<br />
+
+                  {getAddress(selectedOrder)?.house_no}, {getAddress(selectedOrder)?.area}<br />
+
+                  {getAddress(selectedOrder)?.city}, {getAddress(selectedOrder)?.state} - {getAddress(selectedOrder)?.pincode}
+                </p>
+
+                {(getAddress(selectedOrder)?.phone ||
+                  getAddress(selectedOrder)?.mobile ||
+                  getAddress(selectedOrder)?.phone_number) && (
+                    <p className="mt-3 text-sm font-black text-slate-700 flex items-center gap-2">
+                      <FiAlertCircle className="text-[#2c4305]" />
+                      {getAddress(selectedOrder)?.phone ||
+                        getAddress(selectedOrder)?.mobile ||
+                        getAddress(selectedOrder)?.phone_number}
+                    </p>
+                  )}
+
+              </div>
+
+              <div className="flex justify-between items-center bg-[#2c4305] p-6 rounded-3xl text-white shadow-lg">
+                <span className="font-black text-xs uppercase opacity-60">Total Amount</span>
+                <span className="text-3xl font-black">₹{Number(selectedOrder.total_amount).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <button 
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(p => p + 1)}
-          className="p-3 rounded-xl hover:bg-slate-50 disabled:opacity-30 transition-all border border-slate-100"
-        >
-          <FiChevronRight size={20} />
-        </button>
+      )}
+    </div>
+  );
+}
+
+function StatBox({ label, count, icon, color }: any) {
+  return (
+    <div className={`${color} p-5 rounded-3xl shadow-sm border border-slate-200/50 flex items-center gap-4`}>
+      <div className="p-3 bg-black/5 rounded-2xl text-xl">{icon}</div>
+      <div>
+        <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">{label}</p>
+        <p className="text-2xl font-black">{count}</p>
       </div>
     </div>
   );

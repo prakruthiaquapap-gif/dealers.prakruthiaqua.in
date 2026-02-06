@@ -3,32 +3,44 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase';
 import { 
-    MdShoppingCart, MdSearch, MdBlock, MdClose, 
-    MdAdd, MdRemove, MdArrowForward, MdLocalOffer, MdInfoOutline 
+    MdShoppingCart, MdSearch, MdClose, MdAdd, 
+    MdRemove, MdArrowForward, MdLocalOffer, MdFilterAlt, MdRestartAlt, MdInfoOutline 
 } from 'react-icons/md';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-// Constant for Retailer MOQ
-const RETAILER_MOQ = 25; 
+// Interfaces for Type Safety
+interface Category {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    level: 'main' | 'sub' | 'inner';
+}
+
+const RETAILER_MOQ = 25;
 
 export default function RetailerProductsPage() {
     const supabase = createClient();
     const router = useRouter();
-    
-    // State Management
+
+    // --- State Management ---
     const [products, setProducts] = useState<any[]>([]);
-    const [cartItems, setCartItems] = useState<any[]>([]); 
+    const [cartItems, setCartItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState('retailer outlet');
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeCategory, setActiveCategory] = useState('All');
+    
+    // Category States
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedSubcategory, setSelectedSubcategory] = useState('All');
+    const [selectedInnercategory, setSelectedInnercategory] = useState('All');
+    
+    // Product/Variant States
     const [selectedVariants, setSelectedVariants] = useState<{ [key: number]: any }>({});
-
-    // Modal State
     const [showModal, setShowModal] = useState(false);
     const [modalData, setModalData] = useState<any>(null);
-    const [orderQty, setOrderQty] = useState(RETAILER_MOQ); 
+    const [orderQty, setOrderQty] = useState(RETAILER_MOQ);
     const [addingToDb, setAddingToDb] = useState(false);
 
     useEffect(() => {
@@ -40,33 +52,25 @@ export default function RetailerProductsPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data: dealer } = await supabase
-                .from('dealers')
-                .select('role')
-                .eq('user_id', user.id)
-                .single();
-            
-            const role = dealer?.role?.toLowerCase().trim() || 'retailer outlet';
-            setUserRole(role);
+            // 1. Get User Role
+            const { data: dealer } = await supabase.from('dealers').select('role').eq('user_id', user.id).single();
+            setUserRole(dealer?.role?.toLowerCase().trim() || 'retailer outlet');
 
-            const { data: productsData } = await supabase
-                .from('products')
-                .select(`*, product_variants (*)`)
-                .eq('active', true);
+            // 2. Get Categories
+            const { data: categoriesData } = await supabase.from('categories').select('*').order('display_order', { ascending: true });
+            setCategories(categoriesData || []);
 
-            const { data: cartData } = await supabase
-                .from('dealer_cart')
-                .select('product_id, variant_id')
-                .eq('dealer_id', user.id);
+            // 3. Get Products and Cart
+            const { data: productsData } = await supabase.from('products').select(`*, product_variants (*)`).eq('active', true);
+            const { data: cartData } = await supabase.from('dealer_cart').select('product_id, variant_id').eq('dealer_id', user.id);
 
             setCartItems(cartData || []);
             setProducts(productsData || []);
 
+            // Set Initial Variants
             const initialVariants: any = {};
             productsData?.forEach(p => {
-                if (p.product_variants?.length > 0) {
-                    initialVariants[p.id] = p.product_variants[0];
-                }
+                if (p.product_variants?.length > 0) initialVariants[p.id] = p.product_variants[0];
             });
             setSelectedVariants(initialVariants);
         } catch (err) {
@@ -76,8 +80,17 @@ export default function RetailerProductsPage() {
         }
     };
 
-    const getRoleConfig = (role: string) => {
-        switch (role) {
+    // Helper: Build the Breadcrumb Path
+    const getCategoryPath = (catId: string, subId: string, innerId?: string) => {
+        const c = categories.find(i => i.id === catId)?.name;
+        const s = categories.find(i => i.id === subId)?.name;
+        const inCat = innerId ? categories.find(i => i.id === innerId)?.name : null;
+        return [c, s, inCat].filter(Boolean).join(' • ');
+    };
+
+    // Pricing Logic based on Role
+    const activeKeys = (() => {
+        switch (userRole) {
             case 'main dealer':
             case 'dealer': return { price: 'dealer_price', discount: 'dealer_discount' };
             case 'sub dealer': return { price: 'subdealer_price', discount: 'subdealer_discount' };
@@ -85,167 +98,187 @@ export default function RetailerProductsPage() {
             case 'retailer': return { price: 'retail_price', discount: 'retail_discount' };
             default: return { price: 'customer_price', discount: 'customer_discount' };
         }
-    };
+    })();
 
-    const roleConfig = getRoleConfig(userRole);
-
-    const isVariantInCart = (productId: number, variantId: number) => {
-        return cartItems.some(item => item.product_id === productId && item.variant_id === variantId);
-    };
-
-    const handleOpenModal = (product: any, variant: any) => {
-        // Validation: If stock is less than MOQ, we shouldn't even let them open it
-        if (variant.stock < RETAILER_MOQ) {
-            toast.error(`Insufficient stock. Minimum order is ${RETAILER_MOQ} units.`);
-            return;
-        }
-        setModalData({ product, variant });
-        setOrderQty(RETAILER_MOQ); // Force start at 25
-        setShowModal(true);
-    };
+    // Filter Logic
+    const filteredProducts = products.filter(p =>
+        p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (selectedCategory === 'All' || p.category === selectedCategory) &&
+        (selectedSubcategory === 'All' || p.subcategory === selectedSubcategory) &&
+        (selectedInnercategory === 'All' || p.innercategory === selectedInnercategory)
+    );
 
     const handleConfirmAdd = async (gotoCart: boolean = false) => {
-        // Final Safety Check
-        if (orderQty < RETAILER_MOQ) {
-            toast.error(`Minimum order quantity is ${RETAILER_MOQ}`);
-            return;
-        }
-        
         setAddingToDb(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             const { product, variant } = modalData;
+            const finalPrice = variant[activeKeys.price] * (1 - variant[activeKeys.discount] / 100);
 
-            const unitPrice = Number(variant[roleConfig.price]);
-            const discount = Number(variant[roleConfig.discount]);
-            const finalPrice = unitPrice * (1 - discount / 100);
+            await supabase.from('dealer_cart').upsert({
+                dealer_id: user?.id, product_id: product.id, variant_id: variant.id,
+                quantity: orderQty, price: finalPrice, payment_plan: 'full',
+            }, { onConflict: 'dealer_id, product_id, variant_id' });
 
-            const cartItem = {
-                dealer_id: user?.id,
-                product_id: product.id,
-                variant_id: variant.id, 
-                quantity: orderQty,
-                price: finalPrice,
-                payment_plan: 'full',
-            };
-
-            const { error } = await supabase
-                .from('dealer_cart')
-                .upsert(cartItem, { onConflict: 'dealer_id, product_id, variant_id' });
-
-            if (error) throw error;
-
-            setCartItems(prev => {
-                const exists = prev.some(i => i.product_id === product.id && i.variant_id === variant.id);
-                return exists ? prev : [...prev, { product_id: product.id, variant_id: variant.id }];
-            });
-
+            setCartItems(prev => [...prev, { product_id: product.id, variant_id: variant.id }]);
             window.dispatchEvent(new Event('cartUpdated'));
-            toast.success("Added to cart");
+            toast.success("Added to cart!");
             setShowModal(false);
             if (gotoCart) router.push('/pages/cart');
         } catch (err) {
-            toast.error("Error updating cart");
+            toast.error("Error adding to cart");
         } finally {
             setAddingToDb(false);
         }
     };
 
-    const filteredProducts = products.filter(p => 
-        p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) && 
-        (activeCategory === 'All' || p.category === activeCategory)
-    );
-
-    if (loading) return <div className="p-20 text-center font-bold text-gray-400">Loading Catalog...</div>;
+    if (loading) return <div className="h-screen flex items-center justify-center font-black text-[#2c4305] animate-pulse uppercase tracking-widest">Loading Catalog...</div>;
 
     return (
-        <div className="p-4 space-y-6 max-w-7xl mx-auto mb-20">
-            {/* SEARCH & FILTER BAR */}
-            <div className="bg-white p-4 rounded-3xl shadow-sm border flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-                    {['All', 'Bird Food', 'Medicine', 'Fish Food'].map((cat) => (
+        <div className="min-h-screen bg-[#fcfdfa] p-4 lg:p-8 space-y-6 max-w-7xl mx-auto mb-20">
+            
+            {/* --- MULTI-LEVEL FILTER SECTION --- */}
+            <div className="bg-white rounded-[2rem] shadow-xl shadow-[#2c4305]/5 border border-gray-100 p-5 lg:p-6 transition-all">
+                <div className="flex flex-col space-y-5">
+                    {/* Top Row: Search and Reset */}
+                    <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                        <div className="relative w-full lg:max-w-md">
+                            <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2c4305]" size={20} />
+                            <input 
+                                type="text" 
+                                placeholder="Search products..." 
+                                className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#2c4305]/10 outline-none transition-all"
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                         <button 
-                            key={cat} 
-                            onClick={() => setActiveCategory(cat)} 
-                            className={`px-5 py-2 rounded-full text-xs font-black whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-[#108542] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                            onClick={() => { setSelectedCategory('All'); setSelectedSubcategory('All'); setSelectedInnercategory('All'); }}
+                            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-red-400 hover:text-red-600 px-4 py-2 rounded-lg transition-all"
                         >
-                            {cat.toUpperCase()}
+                            <MdRestartAlt size={16}/> Reset All
                         </button>
-                    ))}
-                </div>
-                <div className="relative w-full md:w-72">
-                    <MdSearch className="absolute left-4 top-3 text-gray-400" size={20} />
-                    <input 
-                        type="text" 
-                        placeholder="Search products..." 
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border rounded-full text-sm outline-none focus:border-[#108542]" 
-                        onChange={(e) => setSearchQuery(e.target.value)} 
-                    />
+                    </div>
+
+                    {/* Bottom Row: Hierarchical Selectors */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Main Category */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-[#2c4305] uppercase ml-1 flex items-center gap-1 opacity-60">
+                                <MdFilterAlt /> Main
+                            </label>
+                            <select 
+                                value={selectedCategory}
+                                onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory('All'); setSelectedInnercategory('All'); }}
+                                className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-[11px] font-black text-slate-700 appearance-none focus:ring-1 focus:ring-[#2c4305]/20 cursor-pointer"
+                            >
+                                <option value="All">All Categories</option>
+                                {categories.filter(c => c.level === 'main').map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Sub Category */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-[#2c4305] uppercase ml-1 flex items-center gap-1 opacity-60">
+                                <MdFilterAlt className="opacity-50" /> Sub
+                            </label>
+                            <select 
+                                disabled={selectedCategory === 'All'}
+                                value={selectedSubcategory}
+                                onChange={(e) => { setSelectedSubcategory(e.target.value); setSelectedInnercategory('All'); }}
+                                className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-[11px] font-black text-slate-700 appearance-none disabled:opacity-30 focus:ring-1 focus:ring-[#2c4305]/20 cursor-pointer"
+                            >
+                                <option value="All">All Sub-Categories</option>
+                                {categories.filter(c => c.parent_id === selectedCategory).map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Inner Category */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-[#2c4305] uppercase ml-1 flex items-center gap-1 opacity-60">
+                                <MdFilterAlt className="opacity-30" /> Inner
+                            </label>
+                            <select 
+                                disabled={selectedSubcategory === 'All'}
+                                value={selectedInnercategory}
+                                onChange={(e) => setSelectedInnercategory(e.target.value)}
+                                className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-[11px] font-black text-slate-700 appearance-none disabled:opacity-30 focus:ring-1 focus:ring-[#2c4305]/20 cursor-pointer"
+                            >
+                                <option value="All">All Inner-Categories</option>
+                                {categories.filter(c => c.parent_id === selectedSubcategory).map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* PRODUCT GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* --- COMPACT PRODUCT GRID --- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {filteredProducts.map((product) => {
                     const selectedVariant = selectedVariants[product.id];
-                    const isOutOfStock = !selectedVariant || selectedVariant.stock < RETAILER_MOQ; // Out of stock if less than MOQ
-                    const isInCart = selectedVariant ? isVariantInCart(product.id, selectedVariant.id) : false;
+                    const isOutOfStock = !selectedVariant || selectedVariant.stock < RETAILER_MOQ;
+                    const isInCart = selectedVariant && cartItems.some(item => item.product_id === product.id && item.variant_id === selectedVariant.id);
                     
-                    const rawPrice = selectedVariant ? Number(selectedVariant[roleConfig.price]) : 0;
-                    const discountPercent = selectedVariant ? Number(selectedVariant[roleConfig.discount]) : 0;
-                    const finalPrice = rawPrice * (1 - discountPercent / 100);
+                    const rawPrice = selectedVariant ? Number(selectedVariant[activeKeys.price]) : 0;
+                    const discount = selectedVariant ? Number(selectedVariant[activeKeys.discount]) : 0;
+                    const finalPrice = rawPrice * (1 - discount / 100);
 
                     return (
-                        <div key={product.id} className="bg-white rounded-[2rem] border border-gray-100 flex flex-col overflow-hidden hover:shadow-xl transition-all group relative">
-                            {discountPercent > 0 && (
-                                <div className="absolute top-4 right-4 z-10 bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1">
-                                    <MdLocalOffer /> {discountPercent}% OFF
-                                </div>
-                            )}
-
-                            <div className="h-48 bg-gray-50 p-6 flex items-center justify-center">
-                                <img src={product.image_url} alt={product.product_name} className="max-h-full object-contain group-hover:scale-110 transition-transform" />
+                        <div key={product.id} className="bg-white rounded-[1.8rem] border border-gray-100 flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                            
+                            <div className="h-44 bg-gray-50/50 p-6 relative flex items-center justify-center">
+                                {discount > 0 && (
+                                    <div className="absolute top-3 right-3 z-10 bg-red-500 text-white px-2.5 py-1 rounded-full text-[8px] font-black flex items-center gap-1 shadow-md">
+                                        <MdLocalOffer /> {discount}% OFF
+                                    </div>
+                                )}
+                                <img src={product.image_url} className="max-h-full object-contain group-hover:scale-105 transition-transform duration-500" alt="" />
                             </div>
 
-                            <div className="p-5 flex flex-col flex-1">
-                                <p className="text-[10px] font-black text-[#108542] uppercase mb-1">{product.subcategory}</p>
-                                <h3 className="text-sm font-black text-slate-800 line-clamp-2 mb-3 h-10">{product.product_name}</h3>
+                            <div className="p-4 flex flex-col flex-1">
+                                {/* Displaying the breadcrumb path on the card */}
+                                <span className="bg-[#2c4305]/5 text-[#2c4305] text-[8px] font-black uppercase px-2 py-0.5 rounded-md w-fit mb-2">
+                                    {getCategoryPath(product.category, product.subcategory)}
+                                </span>
+                                
+                                <h3 className="text-[13px] font-black text-slate-800 leading-snug mb-3 min-h-[2rem] line-clamp-2">
+                                    {product.product_name}
+                                </h3>
 
-                                <div className="flex gap-2 mb-4 flex-wrap">
+                                <div className="flex gap-1.5 mb-4 flex-wrap">
                                     {product.product_variants?.map((v: any) => (
                                         <button 
-                                            key={v.id} 
-                                            onClick={() => setSelectedVariants({ ...selectedVariants, [product.id]: v })} 
-                                            className={`text-[10px] px-3 py-1.5 rounded-xl border font-black transition-all ${selectedVariant?.id === v.id ? 'bg-[#1a2b4b] text-white border-[#1a2b4b]' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'}`}
+                                            key={v.id}
+                                            onClick={() => setSelectedVariants({ ...selectedVariants, [product.id]: v })}
+                                            className={`text-[8px] px-2.5 py-1.5 rounded-lg border font-black transition-all ${selectedVariant?.id === v.id ? 'bg-[#1a2b4b] text-white border-[#1a2b4b]' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'}`}
                                         >
-                                            {v.quantity_value} {v.quantity_unit}
+                                            {v.quantity_value}{v.quantity_unit}
                                         </button>
                                     ))}
                                 </div>
 
-                                <div className="mt-auto">
-                                    <div className="flex justify-between items-end mb-4">
+                                <div className="mt-auto pt-3 border-t border-gray-50 space-y-3">
+                                    <div className="flex justify-between items-center">
                                         <div>
-                                            {discountPercent > 0 && <span className="text-xs font-bold text-gray-300 line-through block">₹{rawPrice.toFixed(2)}</span>}
-                                            <span className="text-xl font-black text-slate-900">₹{finalPrice.toFixed(2)}</span>
+                                            {discount > 0 && <span className="text-[9px] font-bold text-gray-300 line-through block leading-none">₹{rawPrice.toFixed(0)}</span>}
+                                            <span className="text-lg font-black text-slate-900 tracking-tight">₹{finalPrice.toFixed(2)}</span>
                                         </div>
-                                        <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isOutOfStock ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                                        <div className={`text-[8px] font-black px-2 py-1 rounded-md ${isOutOfStock ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-700'}`}>
                                             {isOutOfStock ? 'LOW STOCK' : `STOCK: ${selectedVariant?.stock}`}
-                                        </span>
+                                        </div>
                                     </div>
 
                                     {isOutOfStock ? (
-                                        <button disabled className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-[10px] uppercase cursor-not-allowed">Insufficient Stock</button>
+                                        <button disabled className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 font-black text-[10px] uppercase cursor-not-allowed">Insufficient Stock</button>
                                     ) : isInCart ? (
-                                        <button onClick={() => router.push('/pages/cart')} className="w-full py-4 rounded-2xl bg-[#1a2b4b] text-white font-black text-[10px] uppercase flex items-center justify-center gap-2">
-                                            <MdArrowForward size={16} /> Already in Cart
+                                        <button onClick={() => router.push('/pages/cart')} className="w-full py-3 rounded-xl bg-[#1a2b4b] text-white font-black text-[10px] uppercase flex items-center justify-center gap-2">
+                                            <MdArrowForward size={14} /> In Cart
                                         </button>
                                     ) : (
                                         <button 
-                                            onClick={() => handleOpenModal(product, selectedVariant)} 
-                                            className="w-full py-4 rounded-2xl bg-[#108542] text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-[#0d6e36]"
+                                            onClick={() => { setModalData({ product, variant: selectedVariant }); setOrderQty(RETAILER_MOQ); setShowModal(true); }}
+                                            className="w-full py-3 rounded-xl bg-[#2c4305] text-white font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-black transition-all shadow-md shadow-[#2c4305]/10"
                                         >
-                                            <MdShoppingCart size={16} /> Add to Cart
+                                            <MdShoppingCart size={14} /> Add to Cart
                                         </button>
                                     )}
                                 </div>
@@ -255,53 +288,63 @@ export default function RetailerProductsPage() {
                 })}
             </div>
 
-            {/* --- QUANTITY MODAL --- */}
+            {/* --- QUANTITY SELECTOR MODAL --- */}
             {showModal && modalData && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="p-6 flex justify-between items-center border-b">
-                            <h2 className="font-black text-slate-800 uppercase text-sm">Set Order Quantity</h2>
-                            <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><MdClose size={24} /></button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-200">
+                        <div className="p-5 flex justify-between items-center border-b border-gray-50">
+                            <h2 className="font-black text-slate-800 uppercase text-[10px] tracking-widest ml-2">Select Quantity</h2>
+                            <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><MdClose size={20} /></button>
                         </div>
                         
-                        <div className="p-8 space-y-6 text-center">
-                            <img src={modalData.product.image_url} className="h-32 mx-auto object-contain" />
+                        <div className="p-6 space-y-6 text-center">
+                            <div className="h-32 flex items-center justify-center bg-gray-50 rounded-2xl p-4">
+                                <img src={modalData.product.image_url} className="max-h-full object-contain" alt="" />
+                            </div>
+                            
                             <div>
-                                <h4 className="text-lg font-black text-slate-900 line-clamp-1">{modalData.product.product_name}</h4>
-                                <p className="text-[#108542] font-black uppercase text-xs">Variant: {modalData.variant.quantity_value} {modalData.variant.quantity_unit}</p>
-                                <div className="mt-2 inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-600 px-3 py-1 rounded-full font-bold">
-                                    <MdInfoOutline /> Minimum Order: {RETAILER_MOQ} Units
+                                <p className="text-[#2c4305] font-black uppercase text-[8px] tracking-[0.2em] mb-1">
+                                    {getCategoryPath(modalData.product.category, modalData.product.subcategory, modalData.product.innercategory)}
+                                </p>
+                                <h4 className="text-[15px] font-black text-slate-900 leading-tight">{modalData.product.product_name}</h4>
+                                <div className="mt-2 inline-block px-3 py-1 bg-[#1a2b4b] text-white text-[9px] font-black rounded-lg">
+                                    Size: {modalData.variant.quantity_value}{modalData.variant.quantity_unit}
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-center gap-8 bg-gray-50 p-6 rounded-3xl">
+                            <div className="flex items-center justify-center gap-6 bg-gray-50/80 p-5 rounded-[2rem]">
                                 <button 
                                     onClick={() => setOrderQty(Math.max(RETAILER_MOQ, orderQty - 1))} 
-                                    className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border disabled:opacity-30" 
+                                    className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 disabled:opacity-20 transition-all" 
                                     disabled={orderQty <= RETAILER_MOQ}
                                 >
-                                    <MdRemove size={24} />
+                                    <MdRemove size={22} />
                                 </button>
-                                <span className="text-4xl font-black text-slate-900">{orderQty}</span>
+                                <div className="flex flex-col">
+                                    <span className="text-3xl font-black text-slate-900 leading-none">{orderQty}</span>
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase mt-1">Units</span>
+                                </div>
                                 <button 
                                     onClick={() => setOrderQty(Math.min(modalData.variant.stock, orderQty + 1))} 
-                                    className="w-12 h-12 bg-[#1a2b4b] text-white rounded-2xl flex items-center justify-center shadow-lg"
+                                    className="w-10 h-10 bg-[#1a2b4b] text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-black transition-all"
                                     disabled={orderQty >= modalData.variant.stock}
                                 >
-                                    <MdAdd size={24} />
+                                    <MdAdd size={22} />
                                 </button>
                             </div>
 
-                            <div className="flex flex-col gap-3">
-                                <button 
-                                    onClick={() => handleConfirmAdd(false)} 
-                                    disabled={addingToDb} 
-                                    className="w-full bg-[#108542] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
-                                >
-                                    {addingToDb ? 'ADDING...' : `Add ${orderQty} to Order`}
-                                </button>
-                                <button onClick={() => handleConfirmAdd(true)} className="w-full py-2 text-slate-400 font-bold text-[10px] uppercase">Add & View Cart</button>
+                            <div className="bg-amber-50 rounded-xl p-3 flex items-center gap-2 justify-center border border-amber-100">
+                                <MdInfoOutline className="text-amber-600" size={14}/>
+                                <p className="text-[8px] text-amber-700 font-bold uppercase tracking-tight">Min Order: {RETAILER_MOQ} units required</p>
                             </div>
+
+                            <button 
+                                onClick={() => handleConfirmAdd(false)} 
+                                disabled={addingToDb} 
+                                className="w-full bg-[#2c4305] text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#2c4305]/10 hover:bg-black transition-all"
+                            >
+                                {addingToDb ? 'Adding...' : 'Confirm Order'}
+                            </button>
                         </div>
                     </div>
                 </div>
