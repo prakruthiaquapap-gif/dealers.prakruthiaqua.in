@@ -810,7 +810,7 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElemen
           )}
 
           {products.map((p) => {
-            const totalStock = p.variants?.reduce((s, v) => s + v.stock, 0) || 0;
+const totalStock = p.variants?.reduce((s, v) => s + Number(v.stock), 0) || 0;
             const isSelected = selectedProducts.includes(p.id);
 
             return (
