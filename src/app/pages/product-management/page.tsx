@@ -548,37 +548,37 @@ const addVariant = () => {
     }
   };
 
-  const handleEditProduct = (product: Product) => {
-    setIsEditing(true);
-    setEditProductId(product.id);
+const handleEditProduct = (product: Product) => {
+  setIsEditing(true);
+  setEditProductId(product.id);
 
-    setForm({
-      name: product.product_name,
-      description: product.description,
-      category: product.category,
-      subcategory: product.subcategory,
-      innercategory: product.innercategory || '',
-      image_urls: product.image_urls || [product.image_url],
-      variants: product.variants.map((v) => ({
-        id: v.id,
-        quantity_value: v.quantity_value,
-        quantity_unit: v.quantity_unit,
-        stock: v.stock,
-        supplier_price: v.supplier_price,
-        dealer_price: v.dealer_price,
-        subdealer_price: v.subdealer_price,
-        retail_price: v.retail_price,
-        customer_price: v.customer_price,
-        supplier_discount: v.supplier_discount || 0,
-        dealer_discount: v.dealer_discount || 0,
-        subdealer_discount: v.subdealer_discount || 0,
-        retail_discount: v.retail_discount || 0,
-        customer_discount: v.customer_discount || 0,
-      })),
-    });
+  setForm({
+    name: product.product_name,
+    description: product.description,
+    category: product.category,
+    subcategory: product.subcategory,
+    innercategory: product.innercategory || '',
+    image_urls: product.image_urls || [product.image_url],
+    variants: product.variants.map((v) => ({
+      id: v.id,
+      quantity_value: String(v.quantity_value),  // Convert to string
+      quantity_unit: v.quantity_unit,
+      stock: String(v.stock),  // Convert to string
+      supplier_price: String(v.supplier_price),  // Convert to string
+      dealer_price: String(v.dealer_price),  // Convert to string
+      subdealer_price: String(v.subdealer_price),  // Convert to string
+      retail_price: String(v.retail_price),  // Convert to string
+      customer_price: String(v.customer_price),  // Convert to string
+      supplier_discount: String(v.supplier_discount || 0),  // Convert to string
+      dealer_discount: String(v.dealer_discount || 0),  // Convert to string
+      subdealer_discount: String(v.subdealer_discount || 0),  // Convert to string
+      retail_discount: String(v.retail_discount || 0),  // Convert to string
+      customer_discount: String(v.customer_discount || 0),  // Convert to string
+    })),
+  });
 
-    setShowAddModal(true);
-  };
+  setShowAddModal(true);
+};
 
   const toggleProductSelection = (productId: number) => {
     setSelectedProducts(prev =>
