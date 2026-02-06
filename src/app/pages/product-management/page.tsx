@@ -147,31 +147,31 @@ export default function ProductManagement() {
   };
 
 
-  const [form, setForm] = useState<FormData>({
-    name: '',
-    description: '',
-    category: '',
-    subcategory: '',
-    innercategory: '',
-    image_urls: [],
-    variants: [
-      {
-        quantity_value: 0,
-        quantity_unit: '',
-        stock: 0,
-        supplier_price: 0,
-        dealer_price: 0,
-        subdealer_price: 0,
-        retail_price: 0,
-        customer_price: 0,
-        supplier_discount: 0,
-        dealer_discount: 0,
-        subdealer_discount: 0,
-        retail_discount: 0,
-        customer_discount: 0,
-      },
-    ],
-  });
+const [form, setForm] = useState<FormData>({
+  name: '',
+  description: '',
+  category: '',
+  subcategory: '',
+  innercategory: '',
+  image_urls: [],
+  variants: [
+    {
+      quantity_value: '0',  // Changed from 0 to '0'
+      quantity_unit: '',
+      stock: '0',           // Changed from 0 to '0'
+      supplier_price: '0',  // Changed from 0 to '0'
+      dealer_price: '0',    // Changed from 0 to '0'
+      subdealer_price: '0', // Changed from 0 to '0'
+      retail_price: '0',    // Changed from 0 to '0'
+      customer_price: '0',  // Changed from 0 to '0'
+      supplier_discount: '0',  // Changed from 0 to '0'
+      dealer_discount: '0',    // Changed from 0 to '0'
+      subdealer_discount: '0', // Changed from 0 to '0'
+      retail_discount: '0',    // Changed from 0 to '0'
+      customer_discount: '0',  // Changed from 0 to '0'
+    },
+  ],
+});
 
   const [errors, setErrors] = useState<Errors>({});
 
@@ -420,35 +420,35 @@ export default function ProductManagement() {
     }
   };
 
-  const resetForm = () => {
-    setIsEditing(false);
-    setEditProductId(null);
-    setForm({
-      name: '',
-      description: '',
-      category: '',
-      subcategory: '',
-      innercategory: '',
-      image_urls: [],
-      variants: [
-        {
-          quantity_value: 0,
-          quantity_unit: '',
-          stock: 0,
-          supplier_price: 0,
-          dealer_price: 0,
-          subdealer_price: 0,
-          retail_price: 0,
-          customer_price: 0,
-          supplier_discount: 0,
-          dealer_discount: 0,
-          subdealer_discount: 0,
-          retail_discount: 0,
-          customer_discount: 0,
-        },
-      ],
-    });
-  };
+const resetForm = () => {
+  setIsEditing(false);
+  setEditProductId(null);
+  setForm({
+    name: '',
+    description: '',
+    category: '',
+    subcategory: '',
+    innercategory: '',
+    image_urls: [],
+    variants: [
+      {
+        quantity_value: '0',  // Changed from 0 to '0'
+        quantity_unit: '',
+        stock: '0',           // Changed from 0 to '0'
+        supplier_price: '0',  // Changed from 0 to '0'
+        dealer_price: '0',    // Changed from 0 to '0'
+        subdealer_price: '0', // Changed from 0 to '0'
+        retail_price: '0',    // Changed from 0 to '0'
+        customer_price: '0',  // Changed from 0 to '0'
+        supplier_discount: '0',  // Changed from 0 to '0'
+        dealer_discount: '0',    // Changed from 0 to '0'
+        subdealer_discount: '0', // Changed from 0 to '0'
+        retail_discount: '0',    // Changed from 0 to '0'
+        customer_discount: '0',  // Changed from 0 to '0'
+      },
+    ],
+  });
+};
 
   const handleVariantChange = <K extends keyof Variant>(
     index: number,
@@ -463,30 +463,29 @@ export default function ProductManagement() {
     setForm({ ...form, variants: newVariants });
   };
 
-  const addVariant = () => {
-    setForm({
-      ...form,
-      variants: [
-        ...form.variants,
-        {
-          quantity_value: 0,
-          quantity_unit: '',
-          stock: 0,
-          supplier_price: 0,
-          dealer_price: 0,
-          subdealer_price: 0,
-          retail_price: 0,
-          customer_price: 0,
-          supplier_discount: 0,
-          dealer_discount: 0,
-          subdealer_discount: 0,
-          retail_discount: 0,
-          customer_discount: 0,
-        },
-      ],
-    });
-  };
-
+const addVariant = () => {
+  setForm({
+    ...form,
+    variants: [
+      ...form.variants,
+      {
+        quantity_value: '0',  // Changed from 0 to '0'
+        quantity_unit: '',
+        stock: '0',           // Changed from 0 to '0'
+        supplier_price: '0',  // Changed from 0 to '0'
+        dealer_price: '0',    // Changed from 0 to '0'
+        subdealer_price: '0', // Changed from 0 to '0'
+        retail_price: '0',    // Changed from 0 to '0'
+        customer_price: '0',  // Changed from 0 to '0'
+        supplier_discount: '0',  // Changed from 0 to '0'
+        dealer_discount: '0',    // Changed from 0 to '0'
+        subdealer_discount: '0', // Changed from 0 to '0'
+        retail_discount: '0',    // Changed from 0 to '0'
+        customer_discount: '0',  // Changed from 0 to '0'
+      },
+    ],
+  });
+};
   const removeVariant = (index: number) => {
     setForm({ ...form, variants: form.variants.filter((_, i) => i !== index) });
   };
