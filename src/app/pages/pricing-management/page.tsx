@@ -321,11 +321,26 @@ export default function PricingManagement() {
                         <td className="px-8 py-6 text-right">
                           <button
                             className="p-3 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm"
-                            onClick={() => {
-                              setEditingVariant(v);
-                              setCurrentPrices({ ...v });
-                              setShowEditModal(true);
-                            }}
+                           onClick={() => {
+  setEditingVariant(v);
+  setCurrentPrices({
+    stock: String(v.stock),
+
+    supplier_price: String(v.supplier_price),
+    dealer_price: String(v.dealer_price),
+    subdealer_price: String(v.subdealer_price),
+    retail_price: String(v.retail_price),
+    customer_price: String(v.customer_price),
+
+    supplier_discount: String(v.supplier_discount),
+    dealer_discount: String(v.dealer_discount),
+    subdealer_discount: String(v.subdealer_discount),
+    retail_discount: String(v.retail_discount),
+    customer_discount: String(v.customer_discount),
+  });
+  setShowEditModal(true);
+}}
+
                           >
                             <FiEdit2 size={16} />
                           </button>
