@@ -414,9 +414,9 @@ const DesktopOrderRow = ({ order, getAddress, STATUS_FLOW, isOptionDisabled, upd
           disabled={order.delivery_status === 'Delivered'}
           className="text-[11px] bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-black uppercase outline-none focus:ring-2 focus:ring-[#2c4305] cursor-pointer"
         >
-          {STATUS_FLOW.map(status => (
-            <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
-          ))}
+        {STATUS_FLOW.map((status: string) => (
+  <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
+))}
         </select>
       </td>
       <td className="px-6 py-5 text-center">
@@ -460,9 +460,9 @@ const MobileOrderCard = ({ order, getAddress, STATUS_FLOW, isOptionDisabled, upd
             className={`flex-1 text-xs bg-slate-50 border-none rounded-xl px-4 py-3 font-black uppercase outline-none focus:ring-2 focus:ring-[#2c4305] 
               ${order.delivery_status === 'Delivered' ? 'text-green-600' : 'text-slate-700'}`}
           >
-            {STATUS_FLOW.map(status => (
-              <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
-            ))}
+        {STATUS_FLOW.map((status: string) => (
+  <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
+))}
           </select>
           <div className="px-4 py-3 bg-[#2c4305]/10 text-[#2c4305] rounded-xl font-black text-xs">
             ₹{Number(order.total_amount).toLocaleString()}
