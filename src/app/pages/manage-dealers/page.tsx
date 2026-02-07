@@ -226,67 +226,41 @@ export default function ManageDealers() {
         </div>
 
         {/* 3. MAIN TABLE */}
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest">
-              <tr>
-                <th className="px-10 py-6">Partner Identity</th>
-                <th className="px-10 py-6">Role</th>
-                <th className="px-10 py-6 text-center">Quick Approval</th>
-                <th className="px-10 py-6 text-right">Ledger</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr><td colSpan={4} className="py-20 text-center text-gray-300 animate-pulse font-black uppercase tracking-tighter">Synchronizing Network Data...</td></tr>
-              ) : rows.map((r) => {
-                const isNew = new Date(r.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                return (
-                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-10 py-6">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <div className="font-black text-gray-900 text-base flex items-center gap-2">
-                            {r.company_name}
-                            {isNew && <span className="bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-bounce">NEW</span>}
-                          </div>
-                          <div className="text-[11px] text-gray-400 font-bold">{r.first_name} {r.last_name} • {r.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-10 py-6">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase">
-                        {r.role?.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-10 py-6">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleStatusUpdate(r.id, 'approved')}
-                          className={`p-2.5 rounded-xl transition-all ${r.approval_status === 'approved' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-50 text-gray-300 hover:text-green-600'}`}>
-                          <FiCheck size={18} />
-                        </button>
-                        <button onClick={() => handleStatusUpdate(r.id, 'rejected')}
-                          className={`p-2.5 rounded-xl transition-all ${r.approval_status === 'rejected' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-50 text-gray-300 hover:text-red-600'}`}>
-                          <FiSlash size={18} />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-10 py-6 text-right">
-                      <button onClick={() => handleViewDetails(r)}
-                        style={{ color: brandColor, borderColor: `${brandColor}30` }}
-                        className="px-6 py-2.5 rounded-2xl border font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-sm">
-                        View Account
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {!loading && rows.length === 0 && (
-            <div className="py-20 text-center text-gray-400 font-bold">No partners found for this criteria.</div>
-          )}
-        </div>
+       {/* 3. RESPONSIVE TABLE & MOBILE CARDS */}
+<div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+  
+  {/* DESKTOP TABLE (Hidden on Mobile) */}
+  <table className="w-full text-left hidden md:table">
+    <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest">
+      <tr>
+        <th className="px-10 py-6">Partner Identity</th>
+        <th className="px-10 py-6">Role</th>
+        <th className="px-10 py-6 text-center">Quick Approval</th>
+        <th className="px-10 py-6 text-right">Ledger</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-gray-50">
+      {loading ? (
+        <tr><td colSpan={4} className="py-20 text-center text-gray-300 animate-pulse font-black uppercase tracking-tighter">Synchronizing Network Data...</td></tr>
+      ) : rows.map((r) => (
+        <DesktopRow key={r.id} r={r} brandColor={brandColor} handleStatusUpdate={handleStatusUpdate} handleViewDetails={handleViewDetails} />
+      ))}
+    </tbody>
+  </table>
+
+  {/* MOBILE CARD VIEW (Hidden on Desktop) */}
+  <div className="md:hidden divide-y divide-gray-100">
+    {loading ? (
+      <div className="py-20 text-center text-gray-300 animate-pulse font-black uppercase tracking-tighter">Synchronizing...</div>
+    ) : rows.map((r) => (
+      <MobileCard key={r.id} r={r} brandColor={brandColor} handleStatusUpdate={handleStatusUpdate} handleViewDetails={handleViewDetails} />
+    ))}
+  </div>
+
+  {!loading && rows.length === 0 && (
+    <div className="py-20 text-center text-gray-400 font-bold">No partners found for this criteria.</div>
+  )}
+</div>
       </main>
 
       {/* MODAL / LEDGER OVERLAY */}
@@ -395,3 +369,93 @@ const ProfileCard = ({ icon, label, val }: any) => (
     </div>
   </div>
 );
+
+// 1. Desktop Row Component (Extracted for cleanliness)
+const DesktopRow = ({ r, brandColor, handleStatusUpdate, handleViewDetails }: any) => {
+  const isNew = new Date(r.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return (
+    <tr className="hover:bg-gray-50 transition-colors">
+      <td className="px-10 py-6">
+        <div className="font-black text-gray-900 text-base flex items-center gap-2">
+          {r.company_name}
+          {isNew && <span className="bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">NEW</span>}
+        </div>
+        <div className="text-[11px] text-gray-400 font-bold">{r.first_name} {r.last_name} • {r.email}</div>
+      </td>
+      <td className="px-10 py-6">
+        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase">
+          {r.role?.replace('_', ' ')}
+        </span>
+      </td>
+      <td className="px-10 py-6">
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => handleStatusUpdate(r.id, 'approved')}
+            className={`p-2.5 rounded-xl transition-all ${r.approval_status === 'approved' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-50 text-gray-300 hover:text-green-600'}`}>
+            <FiCheck size={18} />
+          </button>
+          <button onClick={() => handleStatusUpdate(r.id, 'rejected')}
+            className={`p-2.5 rounded-xl transition-all ${r.approval_status === 'rejected' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-50 text-gray-300 hover:text-red-600'}`}>
+            <FiSlash size={18} />
+          </button>
+        </div>
+      </td>
+      <td className="px-10 py-6 text-right">
+        <button onClick={() => handleViewDetails(r)}
+          style={{ color: brandColor, borderColor: `${brandColor}30` }}
+          className="px-6 py-2.5 rounded-2xl border font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all">
+          View Account
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// 2. Mobile Card Component (The magic for phones)
+const MobileCard = ({ r, brandColor, handleStatusUpdate, handleViewDetails }: any) => {
+  const isNew = new Date(r.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  
+  return (
+    <div className="p-5 flex flex-col gap-4 bg-white active:bg-gray-50 transition-colors">
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div className="font-black text-gray-900 text-lg leading-tight mb-1 flex items-center gap-2">
+            {r.company_name}
+            {isNew && <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />}
+          </div>
+          <p className="text-xs text-gray-400 font-bold mb-2">{r.first_name} {r.last_name}</p>
+          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-md text-[9px] font-black uppercase tracking-wider">
+            {r.role?.replace('_', ' ')}
+          </span>
+        </div>
+        
+        {/* Quick Action Status */}
+        <div className="flex gap-2">
+           <button onClick={() => handleStatusUpdate(r.id, 'approved')}
+            className={`p-3 rounded-xl transition-all ${r.approval_status === 'approved' ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+            <FiCheck size={16} />
+          </button>
+          <button onClick={() => handleStatusUpdate(r.id, 'rejected')}
+            className={`p-3 rounded-xl transition-all ${r.approval_status === 'rejected' ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+            <FiSlash size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-2 pt-4 border-t border-gray-50">
+        <div className="flex flex-col">
+            <span className="text-[9px] font-black text-gray-300 uppercase">Approval Status</span>
+            <span className={`text-[10px] font-black uppercase ${r.approval_status === 'approved' ? 'text-green-600' : r.approval_status === 'pending' ? 'text-amber-500' : 'text-red-500'}`}>
+                {r.approval_status}
+            </span>
+        </div>
+        <button 
+          onClick={() => handleViewDetails(r)}
+          style={{ backgroundColor: brandColor }}
+          className="px-5 py-3 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-gray-200"
+        >
+          Manage Account
+        </button>
+      </div>
+    </div>
+  );
+};

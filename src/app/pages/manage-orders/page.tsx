@@ -256,73 +256,59 @@ useEffect(() => {
 
 
       {/* 3. TABLE */}
-      <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#2c4305] text-white">
-              <tr>
-                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Order Details</th>
-                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Customer & Email</th>
-                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Status</th>
-                <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-bold">
-              {loading ? (
-                <tr><td colSpan={4} className="py-24 text-center animate-pulse text-slate-300 italic">Fetching Logistics...</td></tr>
-              ) : filteredOrders.map((order) => {
-                const addr = getAddress(order);
-                const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
+    {/* 3. RESPONSIVE TABLE & CARDS */}
+<div className="max-w-6xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+  
+  {/* DESKTOP TABLE (Hidden on Mobile) */}
+  <div className="hidden md:block overflow-x-auto">
+    <table className="w-full text-left text-sm">
+      <thead className="bg-[#2c4305] text-white">
+        <tr>
+          <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Order Details</th>
+          <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider">Customer & Email</th>
+          <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Status</th>
+          <th className="px-6 py-4 font-black uppercase text-[10px] tracking-wider text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 font-bold">
+        {loading ? (
+          <tr><td colSpan={4} className="py-24 text-center animate-pulse text-slate-300 italic">Fetching Logistics...</td></tr>
+        ) : filteredOrders.map((order) => (
+          <DesktopOrderRow 
+            key={`${order.role}-${order.id}`} 
+            order={order} 
+            getAddress={getAddress} 
+            STATUS_FLOW={STATUS_FLOW} 
+            isOptionDisabled={isOptionDisabled} 
+            updateOrderStatus={updateOrderStatus} 
+            setSelectedOrder={setSelectedOrder} 
+          />
+        ))}
+      </tbody>
+    </table>
+  </div>
 
-                return (
-                  <tr key={`${order.role}-${order.id}`} className="hover:bg-slate-50 transition-all">
-                    <td className="px-6 py-5">
-                      <p className="text-[#2c4305] font-black">{order.displayId}</p>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
-                        <FiCalendar /> {orderDate}
-                      </p>
-                    </td>
-                    <td className="px-6 py-5">
-                      <p className="text-slate-900">{addr?.name || 'User'}</p>
-                      <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                        <FiMail className="text-[#2c4305]" /> {order.userEmail ?? addr?.email ?? 'N/A'}
-                      </p>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <select
-                        value={order.delivery_status || 'pending'}
-                        onChange={(e) => updateOrderStatus(order, e.target.value)}
-                        disabled={order.delivery_status === 'Delivered'}
-                        className={`text-[11px] bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-black uppercase outline-none
-    focus:ring-2 focus:ring-[#2c4305] cursor-pointer
-    ${order.delivery_status === 'Delivered' ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      >
-                        {STATUS_FLOW.map(status => (
-                          <option
-                            key={status}
-                            value={status}
-                            disabled={isOptionDisabled(order.delivery_status, status)}
-                          >
-                            {status}
-                          </option>
-                        ))}
-                      </select>
+  {/* MOBILE LIST VIEW (Hidden on Desktop) */}
+  <div className="md:hidden divide-y divide-slate-100">
+    {loading ? (
+      <div className="py-12 text-center animate-pulse text-slate-300 font-black uppercase text-xs">Loading Orders...</div>
+    ) : filteredOrders.map((order) => (
+      <MobileOrderCard 
+        key={`${order.role}-${order.id}`} 
+        order={order} 
+        getAddress={getAddress} 
+        STATUS_FLOW={STATUS_FLOW} 
+        isOptionDisabled={isOptionDisabled} 
+        updateOrderStatus={updateOrderStatus} 
+        setSelectedOrder={setSelectedOrder} 
+      />
+    ))}
+  </div>
 
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <button onClick={() => setSelectedOrder(order)} className="p-2 bg-slate-100 text-[#2c4305] rounded-xl hover:bg-[#2c4305] hover:text-white transition-all shadow-sm">
-                        <FiEye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+  {!loading && filteredOrders.length === 0 && (
+    <div className="py-20 text-center text-slate-400 font-bold">No orders matched your search.</div>
+  )}
+</div>
 
       {/* 4. MODAL */}
       {selectedOrder && (
@@ -402,3 +388,87 @@ function StatBox({ label, count, icon, color }: any) {
     </div>
   );
 }
+
+
+// 1. Desktop Row Component
+const DesktopOrderRow = ({ order, getAddress, STATUS_FLOW, isOptionDisabled, updateOrderStatus, setSelectedOrder }: any) => {
+  const addr = getAddress(order);
+  const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  });
+
+  return (
+    <tr className="hover:bg-slate-50 transition-all">
+      <td className="px-6 py-5">
+        <p className="text-[#2c4305] font-black">{order.displayId}</p>
+        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1"><FiCalendar /> {orderDate}</p>
+      </td>
+      <td className="px-6 py-5">
+        <p className="text-slate-900">{addr?.name || 'User'}</p>
+        <p className="text-[11px] text-slate-400 font-medium truncate max-w-[200px]">{order.userEmail ?? addr?.email ?? 'N/A'}</p>
+      </td>
+      <td className="px-6 py-5 text-center">
+        <select
+          value={order.delivery_status || 'pending'}
+          onChange={(e) => updateOrderStatus(order, e.target.value)}
+          disabled={order.delivery_status === 'Delivered'}
+          className="text-[11px] bg-white border border-slate-200 rounded-lg px-3 py-1.5 font-black uppercase outline-none focus:ring-2 focus:ring-[#2c4305] cursor-pointer"
+        >
+          {STATUS_FLOW.map(status => (
+            <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-6 py-5 text-center">
+        <button onClick={() => setSelectedOrder(order)} className="p-2 bg-slate-100 text-[#2c4305] rounded-xl hover:bg-[#2c4305] hover:text-white transition-all">
+          <FiEye size={18} />
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// 2. Mobile Card Component
+const MobileOrderCard = ({ order, getAddress, STATUS_FLOW, isOptionDisabled, updateOrderStatus, setSelectedOrder }: any) => {
+  const addr = getAddress(order);
+  const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short'
+  });
+
+  return (
+    <div className="p-5 flex flex-col gap-3 bg-white">
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 rounded text-slate-500 uppercase tracking-tighter mb-1 inline-block">
+            {order.role}
+          </span>
+          <h3 className="text-lg font-black text-[#2c4305] leading-none">{order.displayId}</h3>
+          <p className="text-[10px] text-slate-400 font-bold mt-1">{orderDate} • {addr?.name || 'User'}</p>
+        </div>
+        <button onClick={() => setSelectedOrder(order)} className="p-3 bg-slate-50 text-[#2c4305] rounded-2xl active:scale-90 transition-transform">
+          <FiEye size={20} />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2 mt-2">
+        <label className="text-[9px] font-black uppercase text-slate-300">Update Logistics Status</label>
+        <div className="flex items-center gap-2">
+          <select
+            value={order.delivery_status || 'pending'}
+            onChange={(e) => updateOrderStatus(order, e.target.value)}
+            disabled={order.delivery_status === 'Delivered'}
+            className={`flex-1 text-xs bg-slate-50 border-none rounded-xl px-4 py-3 font-black uppercase outline-none focus:ring-2 focus:ring-[#2c4305] 
+              ${order.delivery_status === 'Delivered' ? 'text-green-600' : 'text-slate-700'}`}
+          >
+            {STATUS_FLOW.map(status => (
+              <option key={status} value={status} disabled={isOptionDisabled(order.delivery_status, status)}>{status}</option>
+            ))}
+          </select>
+          <div className="px-4 py-3 bg-[#2c4305]/10 text-[#2c4305] rounded-xl font-black text-xs">
+            ₹{Number(order.total_amount).toLocaleString()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
