@@ -964,11 +964,12 @@ const images = p.image_urls?.length ? p.image_urls : ["/no-image.png"];
                   {/* Image Gallery Area */}
                   <div className="md:w-1/3">
                     <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner group">
-                      <img
-                        src={selectedProduct.image_urls?.[currentImageIndex] || selectedProduct.image_url}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        alt={selectedProduct.product_name}
-                      />
+                   <img
+  src={selectedProduct.image_urls?.[currentImageIndex] || "/no-image.png"}
+  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+  alt={selectedProduct.product_name}
+/>
+
                     </div>
                     {/* Image Indicators */}
                     {selectedProduct.image_urls?.length > 1 && (
