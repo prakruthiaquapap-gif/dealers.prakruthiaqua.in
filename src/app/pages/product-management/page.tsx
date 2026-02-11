@@ -48,7 +48,6 @@ interface Product {
   subcategory: string;   // ID
   innercategory: string; // ID - Add this for inner category
   stock: number;
-  image_url: string;
   image_urls: string[];
   supplier_price: number;
   dealer_price: number;
@@ -112,38 +111,48 @@ export default function ProductManagement() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
     setImageUploading(true);
     setUploadingCount(files.length);
 
-    // show local previews immediately
+    // Show local previews immediately
     const newPreviews = Array.from(files).map((f) => URL.createObjectURL(f));
     setImagePreviews((prev) => [...prev, ...newPreviews]);
 
     const uploadedUrls = [...form.image_urls];
 
-    for (const file of Array.from(files)) {
-      const fileName = `product_${Date.now()}_${file.name}`;
+    try {
+      for (const file of Array.from(files)) {
+        const fileName = `product_${Date.now()}_${file.name}`;
 
-      const { error } = await supabase.storage.from('products').upload(fileName, file);
+        const { error } = await supabase.storage.from("products").upload(fileName, file);
 
-      if (error) {
-        alert('Image upload failed');
-        setImageUploading(false);
-        return;
+        if (error) throw error;
+
+        const { data: urlData } = supabase.storage.from("products").getPublicUrl(fileName);
+
+        uploadedUrls.push(urlData.publicUrl);
+
+        setUploadingCount((c) => c - 1);
       }
 
-      const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName);
-      uploadedUrls.push(urlData.publicUrl);
+      setForm((prev) => ({
+        ...prev,
+        image_urls: uploadedUrls,
+      }));
+    } catch (err) {
+      alert("Image upload failed");
+      console.error(err);
+    } finally {
+      setImageUploading(false);
 
-      setUploadingCount((c) => c - 1);
+      // Remove previews AFTER upload is finished
+      setImagePreviews([]);
+
+      // revoke object urls (important)
+      newPreviews.forEach((url) => URL.revokeObjectURL(url));
     }
-
-    setForm({ ...form, image_urls: uploadedUrls });
-    setImagePreviews([]); // <-- clear previews
-    setImageUploading(false);
-
   };
 
 
@@ -215,7 +224,7 @@ export default function ProductManagement() {
   // Images slideshow for products
   useEffect(() => {
     if (!selectedProduct) return;
-    const images = selectedProduct.image_urls?.length ? selectedProduct.image_urls : [selectedProduct.image_url];
+    const images = selectedProduct.image_urls?.length ? selectedProduct.image_urls : ["/no-image.png"];
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % images.length);
     }, 3000);
@@ -324,8 +333,8 @@ export default function ProductManagement() {
         subcategory: form.subcategory,
         innercategory: form.innercategory,  // Add this
         stock: form.variants.reduce((sum, v) => sum + Number(v.stock), 0),
-        image_url: form.image_urls[0],
-        image_urls: form.image_urls,
+        image_urls: form.image_urls.length ? [form.image_urls[0]] : [],
+
         supplier_price: Number(firstVariant.supplier_price),
         dealer_price: Number(firstVariant.dealer_price),
         subdealer_price: Number(firstVariant.subdealer_price),
@@ -514,9 +523,8 @@ export default function ProductManagement() {
       ...prev,
       image_urls: prev.image_urls.filter((_, i) => i !== indexToRemove),
     }));
-
-    setImagePreviews((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
+
 
 
   const deleteMultipleProducts = async (productIds: number[]) => {
@@ -558,7 +566,7 @@ export default function ProductManagement() {
       category: product.category,
       subcategory: product.subcategory,
       innercategory: product.innercategory || '',
-      image_urls: product.image_urls || [product.image_url],
+      image_urls: product.image_urls || [],
       variants: product.variants.map((v) => ({
         id: v.id,
         quantity_value: String(v.quantity_value),  // Convert to string
@@ -650,7 +658,10 @@ export default function ProductManagement() {
               </button>
 
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();          // ✅ clear old values
+                  setShowAddModal(true);
+                }}
                 style={{ backgroundColor: brandColor }}
                 className={`
             px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-white
@@ -828,7 +839,7 @@ export default function ProductManagement() {
                 {/* Top Image Section */}
                 <div className="relative h-64 overflow-hidden bg-gray-50">
                   <img
-                    src={p.image_urls?.length ? p.image_urls[productImageIndices[p.id] || 0] : p.image_url}
+                    src={p.image_urls?.length ? p.image_urls[productImageIndices[p.id] || 0] : "/no-image.png"}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     alt={p.product_name}
                   />
@@ -1059,6 +1070,8 @@ export default function ProductManagement() {
                     </div>
                   </div>
                 </div>
+
+
               </div>
             </div>
 
@@ -1205,7 +1218,7 @@ export default function ProductManagement() {
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#2c4305] flex items-center justify-center font-bold text-sm">02</div>
-                        <h3 className="text-base md:text-lg font-black uppercase tracking-tight">Variants & Pricing</h3>
+                        <h3 className="text-base md:text-lg text-black font-black uppercase tracking-tight">Variants & Pricing</h3>
                       </div>
                       <button
                         type="button"
@@ -1313,7 +1326,83 @@ export default function ProductManagement() {
                         </div>
                       ))}
                     </div>
+
+
+
+
                   </section>
+                <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-gray-100/50 shadow-sm">
+  
+  {/* Header */}
+  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+    
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#2c4305] flex items-center justify-center font-bold text-sm">
+        03
+      </div>
+
+      <h3 className="text-base md:text-lg text-black font-black uppercase tracking-tight">
+        Product Images
+      </h3>
+    </div>
+
+  </div>
+
+  {/* Upload Label */}
+  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 ml-1">
+    Upload Images
+  </label>
+
+  {/* Upload Button */}
+  <label className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white border border-dashed border-gray-200 cursor-pointer hover:border-indigo-400 transition-all">
+    
+    <FiUploadCloud className="text-xl text-indigo-500" />
+
+    <span className="text-xs font-black uppercase tracking-widest text-gray-600">
+      {imageUploading ? `Uploading... (${uploadingCount})` : "Choose Images"}
+    </span>
+
+    <input
+      type="file"
+      multiple
+      accept="image/*"
+      onChange={handleImageUpload}
+      className="hidden"
+    />
+
+  </label>
+
+  {/* Image Preview Grid */}
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-6">
+    
+    {[...form.image_urls, ...imagePreviews].map((img, idx) => (
+      <div key={idx} className="relative group">
+        
+        <img
+          src={img}
+          className="w-full h-28 object-cover rounded-2xl border border-gray-200 shadow-sm"
+          alt="preview"
+        />
+
+        {/* Remove button only for uploaded images */}
+        {idx < form.image_urls.length && (
+          <button
+            type="button"
+            onClick={() => removeImage(idx)}
+            className="absolute top-2 right-2 bg-white text-rose-500 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition"
+          >
+            <FiXCircle />
+          </button>
+        )}
+
+      </div>
+    ))}
+
+  </div>
+
+</section>
+
+
                 </form>
               </div>
 
