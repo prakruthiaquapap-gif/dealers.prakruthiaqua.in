@@ -237,7 +237,7 @@ export default function ProductManagement() {
       setProductImageIndices((prev) => {
         const updated: { [key: number]: number } = {};
         products.forEach((p) => {
-          const images = p.image_urls?.length ? p.image_urls : [p.image_url];
+const images = p.image_urls?.length ? p.image_urls : ["/no-image.png"];
           updated[p.id] = prev[p.id] !== undefined ? (prev[p.id] + 1) % images.length : 0;
         });
         return updated;
