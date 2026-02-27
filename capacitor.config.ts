@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Prashanthi School',
   webDir: 'out',
   server: {
-    url: 'https://prashanthi-school-6kow.vercel.app/login',
+    url: 'https://dealers.prakruthiaqua.in',
     cleartext: true
   },
   plugins: {
