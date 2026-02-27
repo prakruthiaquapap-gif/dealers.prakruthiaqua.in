@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">dealersprakruthiaqua</string>
+    <string name="title_activity_main">dealersprakruthiaqua</string>
+    <string name="package_name">com.dealersprakruthiaqua.com</string>
+    <string name="custom_url_scheme">com.dealersprakruthiaqua.com</string>
+</resources>
