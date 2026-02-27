@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.prashanthischool.app',
-  appName: 'Prashanthi School',
+  appId: 'com.dealersprakruthiaqua.app',
+  appName: 'Dealers Prakruthiaqua',
   webDir: 'out',
   server: {
     url: 'https://dealers.prakruthiaqua.in',
