@@ -216,7 +216,7 @@ export default function LoginPage() {
                       <input name="email" value={formData.email} placeholder="email@example.com" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
                     <div>
-                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Phone</label>
+                      <label className="text-xs font-black text-gray-400 uppercase ml-1">Phone Number</label>
                       <input name="phone" value={formData.phone} placeholder="Phone Number" onChange={handleChange} className="w-full p-4 bg-gray-50 border rounded-2xl text-black outline-none focus:border-[#2c4305]" />
                     </div>
                     <div>
