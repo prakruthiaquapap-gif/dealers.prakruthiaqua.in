@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.dealersprakruthiaqua.app',
+  appId: 'com.dealersprakruthiaqua.com',
   appName: 'Dealers Prakruthiaqua',
   webDir: 'out',
   server: {
